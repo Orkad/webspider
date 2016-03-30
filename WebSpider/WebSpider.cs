@@ -24,12 +24,21 @@ namespace Orkad.WebSpider
         /// </summary>
         public TextWriter Log { get; set; }
 
-        private Stack<string> links { get; set; }
+        private HashSet<string> SkippedLinks { get; set; }
+
+        private HashSet<string> Links { get; set; }
 
         public WebSpider(string filter, string startUrl, TextWriter log = null)
         {
             Log = log;
+            Filter = filter;
+            SkippedLinks = new HashSet<string>();
+            Links = new HashSet<string>();
+
+
             Process(startUrl);
+
+            
         }
 
         private void WriteLog(string message)
@@ -39,41 +48,54 @@ namespace Orkad.WebSpider
 
         public void Process(string url)
         {
-            HttpWebRequest request = (HttpWebRequest)WebRequest.Create(url);
-            HttpWebResponse response = (HttpWebResponse)request.GetResponse();
-
-            if (response.StatusCode == HttpStatusCode.OK)
+            try
             {
-                Stream receiveStream = response.GetResponseStream();
-                StreamReader readStream = null;
+                HttpWebRequest request = (HttpWebRequest)WebRequest.Create(url);
+                HttpWebResponse response = (HttpWebResponse)request.GetResponse();
 
-                if (response.CharacterSet == null)
+                if (response.StatusCode == HttpStatusCode.OK)
                 {
-                    readStream = new StreamReader(receiveStream);
+                    System.Threading.Thread.Sleep(1000);
+                    Stream receiveStream = response.GetResponseStream();
+                    StreamReader readStream = null;
+
+                    if (response.CharacterSet == null)
+                        readStream = new StreamReader(receiveStream);
+                    else
+                        readStream = new StreamReader(receiveStream, Encoding.GetEncoding(response.CharacterSet));
+
+                    WriteLog("Webspider : Success at " + url);
+                    HtmlDocument doc = new HtmlDocument();
+                    doc.LoadHtml(readStream.ReadToEnd());
+                    SkippedLinks.Add(url);
+
+                    var links = doc.DocumentNode.Descendants("a");
+                    foreach (var link in links)
+                    {
+                        var href = link.Attributes["href"]?.Value;
+                        if (href == null)
+                            continue;
+                        if (href.StartsWith("/")) // Cas Url racine
+                            href = "http://" + request.Host + href;
+
+
+                        if (href != null && href.Contains(Filter) && !SkippedLinks.Contains(href))
+                        {
+                            WriteLog("Webspider : add link to explore => " + href);
+                            Links.Add(href);
+                        }
+                    }
+
+                    response.Close();
+                    readStream.Close();
                 }
                 else
-                {
-                    readStream = new StreamReader(receiveStream, Encoding.GetEncoding(response.CharacterSet));
-                }
-
-                WriteLog("Webspider : Success at " + url);
-                HtmlDocument doc = new HtmlDocument();
-                doc.LoadHtml(readStream.ReadToEnd());
-                FindLink(doc, "");
-
-                response.Close();
-                readStream.Close();
+                    throw new Exception();
             }
-            else
-                WriteLog("Webspider : Can't read at => " + url);
-        }
-
-        public void FindLink(HtmlDocument doc, string linkFilter)
-        {
-            HtmlNodeCollection nodes = doc.DocumentNode.SelectNodes("//a/@href");
-            foreach(var node in nodes)
+            catch(Exception e)
             {
-                WriteLog("Webspider : Link found => " + node.OuterHtml);
+                WriteLog("Webspider : Can't read at => " + url);
+                SkippedLinks.Add(url);
             }
         }
     }

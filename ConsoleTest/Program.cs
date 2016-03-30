@@ -12,7 +12,7 @@ namespace ConsoleTest
     {
         static void Main(string[] args)
         {
-            WebSpider spider = new WebSpider("", "http://www.dofus.com/fr/mmorpg/encyclopedie/ressources", Console.Out);
+            WebSpider spider = new WebSpider("fr/mmorpg/encyclopedie/ressources", "http://www.dofus.com/fr/mmorpg/encyclopedie/ressources", Console.Out);
             Console.ReadKey();
         }
     }
