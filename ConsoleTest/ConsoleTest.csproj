@@ -50,9 +50,9 @@
     <None Include="App.config" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\WebSpider\WebSpider.csproj">
+    <ProjectReference Include="..\WebSpider\WebSpiderLib.csproj">
       <Project>{75d3692b-9d08-4f3a-8bdc-63c53215b6f8}</Project>
-      <Name>WebSpider</Name>
+      <Name>WebSpiderLib</Name>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

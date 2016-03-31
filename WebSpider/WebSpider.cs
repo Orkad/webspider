@@ -1,18 +1,16 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-using HtmlAgilityPack;
 using System.Net;
-using System.Net.Http;
+using System.Text;
+using System.Threading;
+using HtmlAgilityPack;
 
-namespace Orkad.WebSpider
+namespace WebSpiderLib
 {
     public class WebSpider
     {
+        private UniqueQueue<string> Links { get; set; }
 
         /// <summary>
         /// Filtre a appliquer sur les liens
@@ -24,21 +22,43 @@ namespace Orkad.WebSpider
         /// </summary>
         public TextWriter Log { get; set; }
 
-        private HashSet<string> SkippedLinks { get; set; }
+        /// <summary>
+        /// Réésayer a l'echec
+        /// </summary>
+        public bool TryAgainOnFail = true;
 
-        private HashSet<string> Links { get; set; }
+        /// <summary>
+        /// Temps entre chaques requettes (ms)
+        /// </summary>
+        public int TimeBetweenEachTry = 500;
 
         public WebSpider(string filter, string startUrl, TextWriter log = null)
         {
             Log = log;
             Filter = filter;
-            SkippedLinks = new HashSet<string>();
-            Links = new HashSet<string>();
-
-
-            Process(startUrl);
-
-            
+            WriteLog("");
+            WriteLog("--------------------------------------------------");
+            WriteLog("----------------- Starting spider ----------------");
+            WriteLog("--------------------------------------------------");
+            WriteLog("");
+            WriteLog(" ...Options...");
+            WriteLog(" Starting url => " + startUrl);
+            WriteLog(" Link filter => " + Filter);
+            WriteLog(" Try again on fail => " + TryAgainOnFail);
+            WriteLog(" Time between each try => " + TimeBetweenEachTry + " ms");
+            WriteLog(" .............");
+            WriteLog("");
+            Links = new UniqueQueue<string>(true);
+            Links.Enqueue(startUrl);
+            while (!Links.Empty())
+            {
+                Process(new Uri(Links.Dequeue()));
+            }
+            WriteLog("");
+            WriteLog("--------------------------------------------------");
+            WriteLog("------------------ Ending spider -----------------");
+            WriteLog("--------------------------------------------------");
+            WriteLog("");
         }
 
         private void WriteLog(string message)
@@ -46,28 +66,28 @@ namespace Orkad.WebSpider
             Log?.WriteLine(message);
         }
 
-        public void Process(string url)
+        public void Process(Uri uri)
         {
-            try
+            do
             {
-                HttpWebRequest request = (HttpWebRequest)WebRequest.Create(url);
-                HttpWebResponse response = (HttpWebResponse)request.GetResponse();
-
-                if (response.StatusCode == HttpStatusCode.OK)
+                try
                 {
-                    System.Threading.Thread.Sleep(1000);
+                    Thread.Sleep(TimeBetweenEachTry);
+                    HttpWebRequest request = (HttpWebRequest) WebRequest.Create(uri);
+                    HttpWebResponse response = (HttpWebResponse) request.GetResponse();
+
+                    if (response.StatusCode != HttpStatusCode.OK)
+                        throw new Exception();
+
                     Stream receiveStream = response.GetResponseStream();
-                    StreamReader readStream = null;
+                    StreamReader readStream = response.CharacterSet == null
+                        ? new StreamReader(receiveStream)
+                        : new StreamReader(receiveStream, Encoding.GetEncoding(response.CharacterSet));
+                    string html = readStream.ReadToEnd();
+                    WriteLog(" Read => " + uri.AbsoluteUri);
 
-                    if (response.CharacterSet == null)
-                        readStream = new StreamReader(receiveStream);
-                    else
-                        readStream = new StreamReader(receiveStream, Encoding.GetEncoding(response.CharacterSet));
-
-                    WriteLog("Webspider : Success at " + url);
                     HtmlDocument doc = new HtmlDocument();
-                    doc.LoadHtml(readStream.ReadToEnd());
-                    SkippedLinks.Add(url);
+                    doc.LoadHtml(html);
 
                     var links = doc.DocumentNode.Descendants("a");
                     foreach (var link in links)
@@ -79,24 +99,19 @@ namespace Orkad.WebSpider
                             href = "http://" + request.Host + href;
 
 
-                        if (href != null && href.Contains(Filter) && !SkippedLinks.Contains(href))
-                        {
-                            WriteLog("Webspider : add link to explore => " + href);
-                            Links.Add(href);
-                        }
+                        if (href.Contains(Filter))
+                            Links.Enqueue(href);
                     }
 
                     response.Close();
                     readStream.Close();
+                    return;
                 }
-                else
-                    throw new Exception();
-            }
-            catch(Exception e)
-            {
-                WriteLog("Webspider : Can't read at => " + url);
-                SkippedLinks.Add(url);
-            }
+                catch (Exception e)
+                {
+                    WriteLog(" Fail => " + uri.AbsoluteUri);
+                }
+            } while (TryAgainOnFail);
         }
     }
 }
