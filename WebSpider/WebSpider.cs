@@ -1,4 +1,5 @@
 ﻿using System;
+using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
@@ -10,12 +11,15 @@ namespace WebSpiderLib
 {
     public class WebSpider
     {
-        private UniqueQueue<string> Links { get; set; }
+        /// <summary>
+        /// Liste des liens a parcourir
+        /// </summary>
+        private UniqueQueue<string> Links { get; set; } = new UniqueQueue<string>(true);
 
         /// <summary>
         /// Filtre a appliquer sur les liens
         /// </summary>
-        public string Filter { get; set; }
+        public string Filter { get; set; } = "";
 
         /// <summary>
         /// Le stream utilisé pour le log
@@ -30,28 +34,25 @@ namespace WebSpiderLib
         /// <summary>
         /// Temps entre chaques requettes (ms)
         /// </summary>
-        public int TimeBetweenEachTry = 500;
+        public int TimeBetweenEachTry = 0;
 
-        public WebSpider(string filter, string startUrl, TextWriter log = null)
+        public void Run(string startUrl)
         {
-            Log = log;
-            Filter = filter;
             WriteLog("");
             WriteLog("--------------------------------------------------");
             WriteLog("----------------- Starting spider ----------------");
             WriteLog("--------------------------------------------------");
             WriteLog("");
             WriteLog(" ...Options...");
-            WriteLog(" Starting url => " + startUrl);
             WriteLog(" Link filter => " + Filter);
             WriteLog(" Try again on fail => " + TryAgainOnFail);
             WriteLog(" Time between each try => " + TimeBetweenEachTry + " ms");
             WriteLog(" .............");
             WriteLog("");
-            Links = new UniqueQueue<string>(true);
             Links.Enqueue(startUrl);
             while (!Links.Empty())
             {
+            
                 Process(new Uri(Links.Dequeue()));
             }
             WriteLog("");
@@ -61,12 +62,19 @@ namespace WebSpiderLib
             WriteLog("");
         }
 
+        private static string XpathSearch(HtmlDocument doc, string xpath) 
+        {
+            if (string.IsNullOrEmpty(xpath) || doc.DocumentNode.SelectSingleNode(xpath) == null)
+                return null;
+            return doc.DocumentNode.SelectSingleNode(xpath).InnerText;
+        }
+
         private void WriteLog(string message)
         {
             Log?.WriteLine(message);
         }
 
-        public void Process(Uri uri)
+        private void Process(Uri uri)
         {
             do
             {
@@ -97,7 +105,6 @@ namespace WebSpiderLib
                             continue;
                         if (href.StartsWith("/")) // Cas Url racine
                             href = "http://" + request.Host + href;
-
 
                         if (href.Contains(Filter))
                             Links.Enqueue(href);
