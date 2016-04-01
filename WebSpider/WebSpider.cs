@@ -10,22 +10,14 @@ using HtmlAgilityPack;
 
 namespace WebSpiderLib
 {
+    public delegate bool FilterDelegate(string href);
+
     public class WebSpider
     {
         /// <summary>
         /// Liste des liens a parcourir
         /// </summary>
-        private UniqueQueue<string> Links { get; set; } = new UniqueQueue<string>(true);
-
-        /// <summary>
-        /// Filtre a appliquer sur les liens
-        /// </summary>
-        public string Filter { get; set; } = "";
-
-        /// <summary>
-        /// Le stream utilisé pour le log
-        /// </summary>
-        public TextWriter Log { get; set; }
+        public UniqueQueue<string> Links { get; } = new UniqueQueue<string>(true);
 
         /// <summary>
         /// Réésayer a l'echec
@@ -33,53 +25,37 @@ namespace WebSpiderLib
         public bool TryAgainOnFail = true;
 
         /// <summary>
-        /// Temps entre chaques requettes (ms)
+        /// Evenement déclenché au chargement d'une page html par le spider
         /// </summary>
-        public int TimeBetweenEachTry = 0;
+        public event Action<string> HtmlEvent;
 
         /// <summary>
-        /// 
+        /// Evenement déclenché au changement d'une adresse par le spider
         /// </summary>
-        public event Action<string> ExploreEvent;
+        public event Action<Uri> CurrentUriChange;
+
+        public event Action BeforeExplore;
+
+        public event Action AfterExplore;
+
+        /// <summary>
+        /// Filtre a appliquer sur les liens
+        /// </summary>
+        public FilterDelegate Filter;
 
         public void Run(string startUrl)
         {
-            
-            WriteLineLog("");
-            WriteLineLog("--------------------------------------------------");
-            WriteLineLog("----------------- Starting spider ----------------");
-            WriteLineLog("--------------------------------------------------");
-            WriteLineLog("");
-            WriteLineLog(" ...Options...");
-            WriteLineLog(" Link filter => " + Filter);
-            WriteLineLog(" Try again on fail => " + TryAgainOnFail);
-            WriteLineLog(" Time between each try => " + TimeBetweenEachTry + " ms");
-            WriteLineLog(" .............");
-            WriteLineLog("");
             Links.Enqueue(startUrl);
             int i = 0;
             while (!Links.Empty())
             {
-                WriteLineLog(" WebSpider : " + i++ + " explored links " + Links.Count() + " more");
-                Process(new Uri(Links.Dequeue()));
-                Log.Flush();
+                Uri uri = new Uri(Links.Dequeue());
+                DateTime startTime = DateTime.Now;
+                BeforeExplore?.Invoke();
+                CurrentUriChange?.Invoke(uri);
+                Process(uri);
+                AfterExplore?.Invoke();
             }
-            WriteLineLog("");
-            WriteLineLog("--------------------------------------------------");
-            WriteLineLog("------------------ Ending spider -----------------");
-            WriteLineLog("--------------------------------------------------");
-            WriteLineLog("");
-        }
-
-
-        private void WriteLog(string message)
-        {
-            Log?.Write(message);
-        }
-
-        private void WriteLineLog(string message)
-        {
-            Log?.WriteLine(message);
         }
 
         private static string LoadHtml(WebRequest request)
@@ -95,15 +71,6 @@ namespace WebSpiderLib
             return html;
         }
 
-        private static string LoadHtml2(WebRequest request)
-        {
-            using (var myWebClient = new WebClient())
-            {
-                myWebClient.Headers["User-Agent"] = "MOZILLA/5.0 (WINDOWS NT 6.1; WOW64) APPLEWEBKIT/537.1 (KHTML, LIKE GECKO) CHROME/21.0.1180.75 SAFARI/537.1";
-                return myWebClient.DownloadString(request.RequestUri);
-            }
-        }
-
         private void Process(Uri uri)
         {
             do
@@ -111,16 +78,15 @@ namespace WebSpiderLib
                 try
                 {
                     HttpWebRequest request = WebRequest.CreateHttp(uri);
-                    WriteLog(" Read   => ");
-                    WriteLineLog(uri.AbsoluteUri);
                     string html = LoadHtml(request);
-                    ExploreEvent?.Invoke(html);
+
+                    HtmlEvent?.Invoke(html);
 
                     HtmlDocument doc = new HtmlDocument();
                     doc.LoadHtml(html);
 
                     var links = doc.DocumentNode.Descendants("a");
-                    int startLinksCount = Links.Count();
+
                     foreach (var link in links)
                     {
                         var href = link.Attributes["href"]?.Value;
@@ -129,23 +95,16 @@ namespace WebSpiderLib
                         if (href.StartsWith("/")) // Cas Url racine
                             href = "http://" + request.Host + href;
 
-                        if (href.Contains(Filter))
+                        if (Filter(href))
                             Links.Enqueue(href);
-                            
+
                     }
-                    int newLinks = Links.Count() - startLinksCount;
-                    
-                    WriteLog(" Ok ");
-                    if (newLinks > 0)
-                        WriteLineLog("+"+newLinks+" links");
-                    else
-                        WriteLineLog("");
-                    WriteLineLog("");
+
                     return;
                 }
                 catch (Exception e)
                 {
-                    WriteLineLog(" Fail");
+                    
                 }
             } while (TryAgainOnFail);
         }

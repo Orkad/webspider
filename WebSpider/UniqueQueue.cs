@@ -21,6 +21,14 @@ namespace WebSpiderLib
             _queue = new Queue<T>();
         }
 
+        public int QueueCount => _queue.Count;
+        public int MemoryCount => _set.Count;
+
+        public T Peek()
+        {
+            return _queue.Peek();
+        }
+
         public T Dequeue()
         {
             if (!_memory)
