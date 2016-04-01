@@ -2,6 +2,7 @@
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Text;
 using System.Threading;
@@ -43,39 +44,64 @@ namespace WebSpiderLib
 
         public void Run(string startUrl)
         {
-            WriteLog("");
-            WriteLog("--------------------------------------------------");
-            WriteLog("----------------- Starting spider ----------------");
-            WriteLog("--------------------------------------------------");
-            WriteLog("");
-            WriteLog(" ...Options...");
-            WriteLog(" Link filter => " + Filter);
-            WriteLog(" Try again on fail => " + TryAgainOnFail);
-            WriteLog(" Time between each try => " + TimeBetweenEachTry + " ms");
-            WriteLog(" .............");
-            WriteLog("");
+            
+            WriteLineLog("");
+            WriteLineLog("--------------------------------------------------");
+            WriteLineLog("----------------- Starting spider ----------------");
+            WriteLineLog("--------------------------------------------------");
+            WriteLineLog("");
+            WriteLineLog(" ...Options...");
+            WriteLineLog(" Link filter => " + Filter);
+            WriteLineLog(" Try again on fail => " + TryAgainOnFail);
+            WriteLineLog(" Time between each try => " + TimeBetweenEachTry + " ms");
+            WriteLineLog(" .............");
+            WriteLineLog("");
             Links.Enqueue(startUrl);
+            int i = 0;
             while (!Links.Empty())
             {
+                WriteLineLog(" WebSpider : " + i++ + " explored links " + Links.Count() + " more");
                 Process(new Uri(Links.Dequeue()));
+                Log.Flush();
             }
-            WriteLog("");
-            WriteLog("--------------------------------------------------");
-            WriteLog("------------------ Ending spider -----------------");
-            WriteLog("--------------------------------------------------");
-            WriteLog("");
+            WriteLineLog("");
+            WriteLineLog("--------------------------------------------------");
+            WriteLineLog("------------------ Ending spider -----------------");
+            WriteLineLog("--------------------------------------------------");
+            WriteLineLog("");
         }
 
-        private static string XpathSearch(HtmlDocument doc, string xpath) 
-        {
-            if (string.IsNullOrEmpty(xpath) || doc.DocumentNode.SelectSingleNode(xpath) == null)
-                return null;
-            return doc.DocumentNode.SelectSingleNode(xpath).InnerText;
-        }
 
         private void WriteLog(string message)
         {
+            Log?.Write(message);
+        }
+
+        private void WriteLineLog(string message)
+        {
             Log?.WriteLine(message);
+        }
+
+        private static string LoadHtml(WebRequest request)
+        {
+            HttpWebResponse response = (HttpWebResponse)request.GetResponse();
+            Stream receiveStream = response.GetResponseStream();
+            StreamReader readStream = response.CharacterSet == null
+                ? new StreamReader(receiveStream)
+                : new StreamReader(receiveStream, Encoding.GetEncoding(response.CharacterSet));
+            string html = readStream.ReadToEnd();
+            response.Close();
+            readStream.Close();
+            return html;
+        }
+
+        private static string LoadHtml2(WebRequest request)
+        {
+            using (var myWebClient = new WebClient())
+            {
+                myWebClient.Headers["User-Agent"] = "MOZILLA/5.0 (WINDOWS NT 6.1; WOW64) APPLEWEBKIT/537.1 (KHTML, LIKE GECKO) CHROME/21.0.1180.75 SAFARI/537.1";
+                return myWebClient.DownloadString(request.RequestUri);
+            }
         }
 
         private void Process(Uri uri)
@@ -84,27 +110,17 @@ namespace WebSpiderLib
             {
                 try
                 {
-                    Thread.Sleep(TimeBetweenEachTry);
-                    HttpWebRequest request = (HttpWebRequest) WebRequest.Create(uri);
-                    HttpWebResponse response = (HttpWebResponse) request.GetResponse();
-
-                    if (response.StatusCode != HttpStatusCode.OK)
-                        throw new Exception();
-
-                    Stream receiveStream = response.GetResponseStream();
-                    StreamReader readStream = response.CharacterSet == null
-                        ? new StreamReader(receiveStream)
-                        : new StreamReader(receiveStream, Encoding.GetEncoding(response.CharacterSet));
-                    string html = readStream.ReadToEnd();
-                    WriteLog(" Read => " + uri.AbsoluteUri);
-
-                    if(ExploreEvent != null)
-                        ExploreEvent(html);
+                    HttpWebRequest request = WebRequest.CreateHttp(uri);
+                    WriteLog(" Read   => ");
+                    WriteLineLog(uri.AbsoluteUri);
+                    string html = LoadHtml(request);
+                    ExploreEvent?.Invoke(html);
 
                     HtmlDocument doc = new HtmlDocument();
                     doc.LoadHtml(html);
 
                     var links = doc.DocumentNode.Descendants("a");
+                    int startLinksCount = Links.Count();
                     foreach (var link in links)
                     {
                         var href = link.Attributes["href"]?.Value;
@@ -115,15 +131,21 @@ namespace WebSpiderLib
 
                         if (href.Contains(Filter))
                             Links.Enqueue(href);
+                            
                     }
-
-                    response.Close();
-                    readStream.Close();
+                    int newLinks = Links.Count() - startLinksCount;
+                    
+                    WriteLog(" Ok ");
+                    if (newLinks > 0)
+                        WriteLineLog("+"+newLinks+" links");
+                    else
+                        WriteLineLog("");
+                    WriteLineLog("");
                     return;
                 }
                 catch (Exception e)
                 {
-                    WriteLog(" Fail => " + uri.AbsoluteUri);
+                    WriteLineLog(" Fail");
                 }
             } while (TryAgainOnFail);
         }
