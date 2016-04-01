@@ -14,10 +14,11 @@ namespace ConsoleTest
         {
             WebSpider spider = new WebSpider
             {
-                Filter = "data.gouv.fr",
-                Log = Console.Out
+                Filter = "http://www.dofus.com/fr/mmorpg/encyclopedie/ressources",
+                Log = Console.Out,
+                TryAgainOnFail = false
             };
-            spider.Run("http://data.gouv.fr");
+            spider.Run("http://www.dofus.com/fr/mmorpg/encyclopedie/ressources");
             Console.ReadKey();
         }
     }

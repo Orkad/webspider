@@ -36,6 +36,11 @@ namespace WebSpiderLib
         /// </summary>
         public int TimeBetweenEachTry = 0;
 
+        /// <summary>
+        /// 
+        /// </summary>
+        public event Action<string> ExploreEvent;
+
         public void Run(string startUrl)
         {
             WriteLog("");
@@ -52,7 +57,6 @@ namespace WebSpiderLib
             Links.Enqueue(startUrl);
             while (!Links.Empty())
             {
-            
                 Process(new Uri(Links.Dequeue()));
             }
             WriteLog("");
@@ -93,6 +97,9 @@ namespace WebSpiderLib
                         : new StreamReader(receiveStream, Encoding.GetEncoding(response.CharacterSet));
                     string html = readStream.ReadToEnd();
                     WriteLog(" Read => " + uri.AbsoluteUri);
+
+                    if(ExploreEvent != null)
+                        ExploreEvent(html);
 
                     HtmlDocument doc = new HtmlDocument();
                     doc.LoadHtml(html);
