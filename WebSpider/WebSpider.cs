@@ -14,46 +14,49 @@ namespace WebSpiderLib
 
     public class WebSpider
     {
+
+        #region Properties
+
         /// <summary>
         /// Liste des liens a parcourir
         /// </summary>
-        public UniqueQueue<string> Links { get; } = new UniqueQueue<string>(true);
-
-        /// <summary>
-        /// Réésayer a l'echec
-        /// </summary>
-        public bool TryAgainOnFail = true;
-
-        /// <summary>
-        /// Evenement déclenché au chargement d'une page html par le spider
-        /// </summary>
-        public event Action<string> HtmlEvent;
-
-        /// <summary>
-        /// Evenement déclenché au changement d'une adresse par le spider
-        /// </summary>
-        public event Action<Uri> CurrentUriChange;
-
-        public event Action BeforeExplore;
-
-        public event Action AfterExplore;
+        public Explorator<Uri> Links { get; } = new Explorator<Uri>();
 
         /// <summary>
         /// Filtre a appliquer sur les liens
         /// </summary>
-        public FilterDelegate Filter;
+        public FilterDelegate Filter { get; set; }
 
-        public void Run(string startUrl)
+        #endregion
+
+        /// <summary>
+        /// Evenement lancé avant l'exploration d'une page
+        /// </summary>
+        public event Action BeforeExplore;
+
+        /// <summary>
+        /// Evenement lancé après l'exploration d'une page
+        /// </summary>
+        public event Action AfterExplore;
+
+        /// <summary>
+        /// Evenement lancé pendant la lecture html avec le code Html passé en paramètre
+        /// </summary>
+        public event Action<string> OnHtmlExplore;
+
+        /// <summary>
+        /// Evenement lancée lors d'une erreur au cours de la lecture
+        /// </summary>
+        public event Action<string> ErrorEvent;
+
+
+        public void Run(Uri uri)
         {
-            Links.Enqueue(startUrl);
-            int i = 0;
+            Links.Add(uri);
             while (!Links.Empty())
             {
-                Uri uri = new Uri(Links.Dequeue());
-                DateTime startTime = DateTime.Now;
                 BeforeExplore?.Invoke();
-                CurrentUriChange?.Invoke(uri);
-                Process(uri);
+                Process(Links.Explore());
                 AfterExplore?.Invoke();
             }
         }
@@ -80,10 +83,10 @@ namespace WebSpiderLib
                     HttpWebRequest request = WebRequest.CreateHttp(uri);
                     string html = LoadHtml(request);
 
-                    HtmlEvent?.Invoke(html);
-
                     HtmlDocument doc = new HtmlDocument();
                     doc.LoadHtml(html);
+
+                    OnHtmlExplore(html);
 
                     var links = doc.DocumentNode.Descendants("a");
 
@@ -96,17 +99,15 @@ namespace WebSpiderLib
                             href = "http://" + request.Host + href;
 
                         if (Filter(href))
-                            Links.Enqueue(href);
-
+                            Links.Add(new Uri(href));
                     }
-
                     return;
                 }
                 catch (Exception e)
                 {
-                    
+                    ErrorEvent?.Invoke(e.Message);
                 }
-            } while (TryAgainOnFail);
+            } while (true);
         }
     }
 }

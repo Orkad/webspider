@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 using WebSpiderLib;
 using HtmlAgilityPack;
 using MySql.Data.MySqlClient;
-using static System.String;
+
 
 namespace ConsoleTest
 {
@@ -16,14 +16,37 @@ namespace ConsoleTest
     {
         private static string currentUrl { get; set; } = "Vide";
         private static readonly WebSpider spider = new WebSpider();
+        static List<DofusRessource> ressources = new List<DofusRessource>();
 
         static void Main(string[] args)
         {
-            spider.Filter = Filter;
-            spider.HtmlEvent += ExtractRessource;
-            spider.CurrentUriChange += OnUriChange;
-            spider.Run("http://www.dofus.com/fr/mmorpg/encyclopedie/ressources");
+            spider.OnHtmlExplore += ExtractRessource;
+            spider.Links.AfterItemExplored += LinksOnAfterItemExplored;
+            spider.Filter += Filter;
+            spider.ErrorEvent += SpiderOnErrorEvent;
+            spider.Run(new Uri("http://www.dofus.com/fr/mmorpg/encyclopedie/ressources"));
             Console.ReadKey();
+        }
+
+        private static void SpiderOnErrorEvent(string s)
+        {
+            Console.Clear();
+            Console.WriteLine("-----------------------------------------");
+            Console.WriteLine("-----------------WebSpider---------------");
+            Console.WriteLine("-----------------------------------------");
+            Console.WriteLine("");
+            Console.WriteLine(" Url courante        => " + currentUrl);
+            Console.WriteLine(" Pages explorées     => " + (spider.Links.MemoryCount - spider.Links.QueueCount));
+            Console.WriteLine(" Pages restantes     => " + spider.Links.QueueCount);
+            Console.WriteLine(" Pages total         => " + spider.Links.MemoryCount);
+            Console.WriteLine(" Ressources trouvées => " + ressources.Count);
+            Console.WriteLine(" Erreur              => " + s);
+        }
+
+        private static void LinksOnAfterItemExplored(Uri uri)
+        {
+            currentUrl = uri.AbsoluteUri;
+            ConsoleRefresh();
         }
 
         private static void ConsoleRefresh()
@@ -40,12 +63,6 @@ namespace ConsoleTest
             Console.WriteLine(" Ressources trouvées => " + ressources.Count);
         }
 
-        private static void OnUriChange(Uri uri)
-        {
-            currentUrl = uri.AbsoluteUri;
-            ConsoleRefresh();
-        }
-
         private static bool Filter(string href)
         {
             if (href.Contains("http://www.dofus.com/fr/mmorpg/encyclopedie/ressources"))
@@ -53,28 +70,6 @@ namespace ConsoleTest
                     return true;
             return false;
         }
-
-        public class DofusRessource
-        {
-            private static string TableName = "ressource";
-            public int Level { get; set; }
-
-            public string Nom { get; set; }
-
-            public string Categorie { get; set; }
-
-            public string Description { get; set; }
-
-            public string ToSQL()
-            {
-                if (IsNullOrWhiteSpace(Nom) || IsNullOrWhiteSpace(Categorie) || IsNullOrWhiteSpace(Description))
-                    return "";
-                return "INSERT OR REPLACE INTO " + TableName + " VALUES('" + Nom + "'," + Level + ",'" + Categorie +
-                           "','" + Description + "')";
-            }
-        }
-
-        static List<DofusRessource> ressources = new List<DofusRessource>(); 
 
         private static void ExtractRessource(string html)
         {
@@ -99,7 +94,7 @@ namespace ConsoleTest
 
         private static string XpathSearch(HtmlDocument doc, string xpath)
         {
-            if (IsNullOrEmpty(xpath) || doc.DocumentNode.SelectSingleNode(xpath) == null)
+            if (String.IsNullOrEmpty(xpath) || doc.DocumentNode.SelectSingleNode(xpath) == null)
                 return null;
             return doc.DocumentNode.SelectSingleNode(xpath).InnerText.Trim();
         }

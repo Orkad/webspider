@@ -45,7 +45,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="UniqueQueue.cs" />
+    <Compile Include="Explorator.cs" />
     <Compile Include="WebSpider.cs" />
   </ItemGroup>
   <ItemGroup>

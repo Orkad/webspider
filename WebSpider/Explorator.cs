@@ -7,16 +7,13 @@ using System.Threading.Tasks;
 
 namespace WebSpiderLib
 {
-    public class UniqueQueue<T> : IEnumerable<T>
+    public class Explorator<T> : IEnumerable<T>
     {
         private readonly Queue<T> _queue;
         private readonly HashSet<T> _set;
 
-        private readonly bool _memory;
-
-        public UniqueQueue(bool memory)
+        public Explorator()
         {
-            _memory = memory;
             _set = new HashSet<T>();
             _queue = new Queue<T>();
         }
@@ -29,19 +26,22 @@ namespace WebSpiderLib
             return _queue.Peek();
         }
 
-        public T Dequeue()
+        public T Explore()
         {
-            if (!_memory)
-                _set.Remove(_queue.Peek());
-            return _queue.Dequeue();
+            BeforeItemExplored?.Invoke(Peek());
+            T item = _queue.Dequeue();
+            AfterItemExplored?.Invoke(item);
+            return item;
         }
 
-        public void Enqueue(T item)
+        public void Add(T item)
         {
             if (!_set.Contains(item))
             {
+                BeforeItemAdded?.Invoke(item);
                 _queue.Enqueue(item);
                 _set.Add(item);
+                AfterItemAdded?.Invoke(item);
             }
         }
 
@@ -59,5 +59,13 @@ namespace WebSpiderLib
         {
             return _queue.GetEnumerator();
         }
+
+        //EVENT PART
+
+        public event Action<T> BeforeItemAdded;
+        public event Action<T> AfterItemAdded;
+
+        public event Action<T> BeforeItemExplored;
+        public event Action<T> AfterItemExplored;
     }
 }
