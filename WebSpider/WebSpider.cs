@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Threading;
+using System.Timers;
 using HtmlAgilityPack;
 
 namespace WebSpiderLib
@@ -36,7 +37,10 @@ namespace WebSpiderLib
         /// </summary>
         public int ResponseCount { get; set; }
 
-        public TimeSpan ElapsedTime { get; set; } = new TimeSpan();
+        /// <summary>
+        /// Temps passé depuis le lancement du spider
+        /// </summary>
+        public System.Timers.Timer TimerFromStart { get; } = new System.Timers.Timer();
 
         /// <summary>
         /// Thread principal
@@ -58,6 +62,13 @@ namespace WebSpiderLib
         /// </summary>
         public event Action<Uri,string> HtmlAction;
 
+        private void Init()
+        {
+            Links.Clear();
+            RequestCount = 0;
+            ResponseCount = 0;
+        }
+
         /// <summary>
         /// Démarrage du spider
         /// </summary>
@@ -74,6 +85,7 @@ namespace WebSpiderLib
                 Running = true;
                 mainThread = new Thread(Process);
                 mainThread.Start();
+                TimerFromStart.Start();
                 Log?.Invoke("Démarrage du WebSpider");
             }
             catch (UriFormatException)
@@ -87,18 +99,21 @@ namespace WebSpiderLib
             mainThread?.Abort();
             mainThread = null;
             Running = false;
+            TimerFromStart.Stop();
             Log?.Invoke("Arrêt du WebSpider");
         }
 
         public void Continue()
         {
             Running = true;
+            TimerFromStart.Start();
             Log?.Invoke("Reprise du WebSpider");
         }
 
         public void Pause()
         {
             Running = false;
+            TimerFromStart.Stop();
             Log?.Invoke("Pause du WebSpider");
         }
 
@@ -141,9 +156,12 @@ namespace WebSpiderLib
         /// <param name="result">resultat asynchrone</param>
         private void OnUriExplored(IAsyncResult result)
         {
-            if (mainThread == null)
-                return;
             HttpWebRequest request = (HttpWebRequest)result.AsyncState;
+            if (mainThread == null)
+            {
+                Links.Add(request.RequestUri);
+                return;
+            }
             try
             {
                 HttpWebResponse response = (HttpWebResponse) request.EndGetResponse(result);
@@ -170,7 +188,7 @@ namespace WebSpiderLib
                     }
                 }
                 Log?.Invoke("Reponse => " + request.RequestUri.AbsoluteUri);
-
+                ResponseCount++;
             }
             catch (Exception e)
             {

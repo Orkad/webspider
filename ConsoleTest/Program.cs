@@ -37,7 +37,7 @@ namespace ConsoleTest
 
         private static void SpiderOnLog(string s)
         {
-            Console.WriteLine("WebSpider(" + spider.RequestCount + ") " + s);
+            Console.WriteLine("WebSpider( Requetes : " + spider.RequestCount + " | Réponses : " + spider.ResponseCount + ") " + s);
         }
 
         private static bool Filter(Uri uri)
