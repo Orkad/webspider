@@ -17,27 +17,33 @@ namespace ConsoleTest
         static void Main(string[] args)
         {
             spider.Log += SpiderOnLog;
+            spider.ErrorLog += SpiderOnErrorLog;
             spider.Filter = Filter;
             
             ConsoleKey key;
+            SpiderOnLog("Appuyez sur une touche (A) Lancer | (Z) Stopper | (Esc) Quitter");
             do
             {
                 key = Console.ReadKey().Key;
+                Console.Clear();
                 if (key == ConsoleKey.Z)
                     spider.Stop();
                 if(key == ConsoleKey.A)
                     spider.Start("http://www.dofus.com/fr/mmorpg/encyclopedie/ressources");
-                if(key == ConsoleKey.E)
-                    spider.Pause();
-                if(key == ConsoleKey.R)
-                    spider.Continue();
             } while (key != ConsoleKey.Escape);
             spider.Stop();
         }
 
+        private static void SpiderOnErrorLog(string s)
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine(s);
+        }
+
         private static void SpiderOnLog(string s)
         {
-            Console.WriteLine("WebSpider( Requetes : " + spider.RequestCount + " | Réponses : " + spider.ResponseCount + ") " + s);
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine(s);
         }
 
         private static bool Filter(Uri uri)
