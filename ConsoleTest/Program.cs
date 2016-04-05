@@ -18,14 +18,21 @@ namespace ConsoleTest
         {
             spider.Log += SpiderOnLog;
             spider.Filter = Filter;
-            spider.Start("http://www.dofus.com/fr/mmorpg/encyclopedie/ressources");
+            
             ConsoleKey key;
             do
             {
                 key = Console.ReadKey().Key;
-                if (key == ConsoleKey.S)
+                if (key == ConsoleKey.Z)
                     spider.Stop();
+                if(key == ConsoleKey.A)
+                    spider.Start("http://www.dofus.com/fr/mmorpg/encyclopedie/ressources");
+                if(key == ConsoleKey.E)
+                    spider.Pause();
+                if(key == ConsoleKey.R)
+                    spider.Continue();
             } while (key != ConsoleKey.Escape);
+            spider.Stop();
         }
 
         private static void SpiderOnLog(string s)

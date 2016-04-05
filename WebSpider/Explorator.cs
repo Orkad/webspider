@@ -41,6 +41,12 @@ namespace WebSpiderLib
             }
         }
 
+        public void Clear()
+        {
+            _set.Clear();
+            _queue.Clear();
+        }
+
         public bool Empty()
         {
             return _queue.Count == 0;

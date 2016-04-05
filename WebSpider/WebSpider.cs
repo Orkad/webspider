@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Threading;
@@ -19,12 +20,23 @@ namespace WebSpiderLib
         /// <summary>
         /// Liste des liens a parcourir
         /// </summary>
-        public Explorator<Uri> Links { get; } = new Explorator<Uri>();
+        private Explorator<Uri> Links { get; } = new Explorator<Uri>();
+
+        private bool Running { get; set; }
 
         /// <summary>
         /// Nombre de requettes totales en cours
         /// </summary>
         public int RequestCount { get; set; }
+
+        public int NumberOfTryOnError { get; set; } = 3;
+
+        /// <summary>
+        /// Nombre de réponses totales
+        /// </summary>
+        public int ResponseCount { get; set; }
+
+        public TimeSpan ElapsedTime { get; set; } = new TimeSpan();
 
         /// <summary>
         /// Thread principal
@@ -52,15 +64,17 @@ namespace WebSpiderLib
         /// <param name="url"></param>
         public void Start(string url)
         {
-            Log?.Invoke("Démarrage du WebSpider");
+            Links.Clear();
             try
             {
                 Uri startUri = new Uri(url);
                 if (!startUri.IsAbsoluteUri)
                     throw new WebSpiderException("L'adresse de départ n'est pas absolue");
                 Links.Add(startUri);
+                Running = true;
                 mainThread = new Thread(Process);
                 mainThread.Start();
+                Log?.Invoke("Démarrage du WebSpider");
             }
             catch (UriFormatException)
             {
@@ -68,13 +82,24 @@ namespace WebSpiderLib
             }
         }
 
-        /// <summary>
-        /// Arret du spider
-        /// </summary>
         public void Stop()
         {
-            mainThread.Abort();
+            mainThread?.Abort();
+            mainThread = null;
+            Running = false;
             Log?.Invoke("Arrêt du WebSpider");
+        }
+
+        public void Continue()
+        {
+            Running = true;
+            Log?.Invoke("Reprise du WebSpider");
+        }
+
+        public void Pause()
+        {
+            Running = false;
+            Log?.Invoke("Pause du WebSpider");
         }
 
         /// <summary>
@@ -84,8 +109,11 @@ namespace WebSpiderLib
         {
             while (!Links.Empty() || RequestCount != 0)
             {
-                if (!Links.Empty())
-                    ExploreUri(Links.Explore());
+                if (Running)
+                {
+                    if (!Links.Empty())
+                        ExploreUri(Links.Explore());
+                }   
             }
         }
 
@@ -101,9 +129,9 @@ namespace WebSpiderLib
                 request.BeginGetResponse(OnUriExplored, request);
                 RequestCount++;
             }
-            catch
+            catch(Exception e)
             {
-                //ignored
+                Log?.Invoke("Erreur WebSpider : " + e.Message);
             }
         }
 
@@ -113,9 +141,11 @@ namespace WebSpiderLib
         /// <param name="result">resultat asynchrone</param>
         private void OnUriExplored(IAsyncResult result)
         {
+            if (mainThread == null)
+                return;
+            HttpWebRequest request = (HttpWebRequest)result.AsyncState;
             try
             {
-                HttpWebRequest request = (HttpWebRequest) result.AsyncState;
                 HttpWebResponse response = (HttpWebResponse) request.EndGetResponse(result);
 
                 Stream streamResponse = response.GetResponseStream();
@@ -144,7 +174,8 @@ namespace WebSpiderLib
             }
             catch (Exception e)
             {
-                Log?.Invoke("Erreur WebSpider : " + e.Message);
+                Log?.Invoke("Erreur WebSpider => " + request.RequestUri.AbsoluteUri);
+                Links.Add(request.RequestUri);
             }
             
             RequestCount--;
