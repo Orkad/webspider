@@ -28,9 +28,7 @@ namespace WebSpiderLib
 
         public T Explore()
         {
-            BeforeItemExplored?.Invoke(Peek());
             T item = _queue.Dequeue();
-            AfterItemExplored?.Invoke(item);
             return item;
         }
 
@@ -38,10 +36,8 @@ namespace WebSpiderLib
         {
             if (!_set.Contains(item))
             {
-                BeforeItemAdded?.Invoke(item);
                 _queue.Enqueue(item);
                 _set.Add(item);
-                AfterItemAdded?.Invoke(item);
             }
         }
 
@@ -59,13 +55,5 @@ namespace WebSpiderLib
         {
             return _queue.GetEnumerator();
         }
-
-        //EVENT PART
-
-        public event Action<T> BeforeItemAdded;
-        public event Action<T> AfterItemAdded;
-
-        public event Action<T> BeforeItemExplored;
-        public event Action<T> AfterItemExplored;
     }
 }

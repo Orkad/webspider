@@ -1,21 +1,20 @@
 ﻿using System;
-using System.CodeDom.Compiler;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Net;
-using System.Text;
 using System.Threading;
 using HtmlAgilityPack;
 
 namespace WebSpiderLib
 {
-    public delegate bool FilterDelegate(string href);
+    /// <summary>
+    /// Définition d'un type de fonction pour un filtre
+    /// </summary>
+    /// <param name="uri">Adresse a filtrer</param>
+    /// <returns></returns>
+    public delegate bool FilterDelegate(Uri uri);
 
     public class WebSpider
     {
-
-        #region Properties
 
         /// <summary>
         /// Liste des liens a parcourir
@@ -23,91 +22,137 @@ namespace WebSpiderLib
         public Explorator<Uri> Links { get; } = new Explorator<Uri>();
 
         /// <summary>
-        /// Filtre a appliquer sur les liens
+        /// Nombre de requettes totales en cours
         /// </summary>
-        public FilterDelegate Filter { get; set; }
-
-        #endregion
+        public int RequestCount { get; set; }
 
         /// <summary>
-        /// Evenement lancé avant l'exploration d'une page
+        /// Thread principal
         /// </summary>
-        public event Action BeforeExplore;
+        private Thread mainThread;
 
         /// <summary>
-        /// Evenement lancé après l'exploration d'une page
+        /// Filtre des liens
         /// </summary>
-        public event Action AfterExplore;
+        public FilterDelegate Filter = href => true;
 
         /// <summary>
-        /// Evenement lancé pendant la lecture html avec le code Html passé en paramètre
+        /// Evenement de log
         /// </summary>
-        public event Action<string> OnHtmlExplore;
+        public event Action<string> Log;
 
         /// <summary>
-        /// Evenement lancée lors d'une erreur au cours de la lecture
+        /// Evenement se déclenchant sur chaques pages html (URI, HTML string)
         /// </summary>
-        public event Action<string> ErrorEvent;
+        public event Action<Uri,string> HtmlAction;
 
-
-        public void Run(Uri uri)
+        /// <summary>
+        /// Démarrage du spider
+        /// </summary>
+        /// <param name="url"></param>
+        public void Start(string url)
         {
-            Links.Add(uri);
-            while (!Links.Empty())
+            Log?.Invoke("Démarrage du WebSpider");
+            try
             {
-                BeforeExplore?.Invoke();
-                Process(Links.Explore());
-                AfterExplore?.Invoke();
+                Uri startUri = new Uri(url);
+                if (!startUri.IsAbsoluteUri)
+                    throw new WebSpiderException("L'adresse de départ n'est pas absolue");
+                Links.Add(startUri);
+                mainThread = new Thread(Process);
+                mainThread.Start();
+            }
+            catch (UriFormatException)
+            {
+                throw new WebSpiderException("L'adresse de départ est invalide");
             }
         }
 
-        private static string LoadHtml(WebRequest request)
+        /// <summary>
+        /// Arret du spider
+        /// </summary>
+        public void Stop()
         {
-            HttpWebResponse response = (HttpWebResponse)request.GetResponse();
-            Stream receiveStream = response.GetResponseStream();
-            StreamReader readStream = response.CharacterSet == null
-                ? new StreamReader(receiveStream)
-                : new StreamReader(receiveStream, Encoding.GetEncoding(response.CharacterSet));
-            string html = readStream.ReadToEnd();
-            response.Close();
-            readStream.Close();
-            return html;
+            mainThread.Abort();
+            Log?.Invoke("Arrêt du WebSpider");
         }
 
-        private void Process(Uri uri)
+        /// <summary>
+        /// Boucle principale du spider
+        /// </summary>
+        private void Process()
         {
-            do
+            while (!Links.Empty() || RequestCount != 0)
             {
-                try
-                {
-                    HttpWebRequest request = WebRequest.CreateHttp(uri);
-                    string html = LoadHtml(request);
-
-                    HtmlDocument doc = new HtmlDocument();
-                    doc.LoadHtml(html);
-
-                    OnHtmlExplore(html);
-
-                    var links = doc.DocumentNode.Descendants("a");
-
-                    foreach (var link in links)
-                    {
-                        var href = link.Attributes["href"]?.Value;
-                        if (href == null)
-                            continue;
-                        if (href.StartsWith("/")) // Cas Url racine
-                            href = "http://" + request.Host + href;
-
-                        if (Filter(href))
-                            Links.Add(new Uri(href));
-                    }
-                    return;
-                }
-                catch (Exception e)
-                {
-                    ErrorEvent?.Invoke(e.Message);
-                }
-            } while (true);
+                if (!Links.Empty())
+                    ExploreUri(Links.Explore());
+            }
         }
+
+        /// <summary>
+        /// Fonction emetant une requette web qui sera receptionné par sa fonction asynchrone
+        /// </summary>
+        /// <param name="uri">adresse pour la requette</param>
+        private void ExploreUri(Uri uri)
+        {
+            try
+            {
+                WebRequest request = WebRequest.CreateHttp(uri);
+                request.BeginGetResponse(OnUriExplored, request);
+                RequestCount++;
+            }
+            catch
+            {
+                //ignored
+            }
+        }
+
+        /// <summary>
+        /// Fonction asynchrone se déclenchant lors de la réponse d'une requette web
+        /// </summary>
+        /// <param name="result">resultat asynchrone</param>
+        private void OnUriExplored(IAsyncResult result)
+        {
+            try
+            {
+                HttpWebRequest request = (HttpWebRequest) result.AsyncState;
+                HttpWebResponse response = (HttpWebResponse) request.EndGetResponse(result);
+
+                Stream streamResponse = response.GetResponseStream();
+                StreamReader reader = new StreamReader(streamResponse);
+                string html = reader.ReadToEnd();
+                HtmlDocument doc = new HtmlDocument();
+                doc.LoadHtml(html);
+                HtmlAction?.Invoke(request.RequestUri,html);
+
+                var links = doc.DocumentNode.Descendants("a");
+            
+                foreach (var link in links)
+                {
+                    string href = link.Attributes["href"]?.Value;
+                    if (href != null)
+                    {
+                        Uri uri = new Uri(href,UriKind.RelativeOrAbsolute);
+                        if(!uri.IsAbsoluteUri)
+                            uri = new Uri(request.RequestUri, uri);
+                        if (Filter(uri))
+                            Links.Add(uri);
+                    }
+                }
+                Log?.Invoke("Reponse => " + request.RequestUri.AbsoluteUri);
+
+            }
+            catch (Exception e)
+            {
+                Log?.Invoke("Erreur WebSpider : " + e.Message);
+            }
+            
+            RequestCount--;
+        }
+    }
+
+    public class WebSpiderException : Exception
+    {
+        public WebSpiderException(string message) : base("Erreur WebSpider : " + message) { }
     }
 }
