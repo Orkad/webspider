@@ -1,11 +1,11 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 14
-VisualStudioVersion = 14.0.24720.0
+VisualStudioVersion = 14.0.23107.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WebSpiderLib", "WebSpider\WebSpiderLib.csproj", "{75D3692B-9D08-4F3A-8BDC-63C53215B6F8}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ConsoleTest", "ConsoleTest\ConsoleTest.csproj", "{C1CD6B4F-6C0A-44D0-8D97-6C3D20AA68CF}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ConsoleLog", "ConsoleTest\ConsoleLog.csproj", "{C1CD6B4F-6C0A-44D0-8D97-6C3D20AA68CF}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WebSpiderForm", "WebSpiderForm\WebSpiderForm.csproj", "{485FC683-4B4C-41DD-BB87-FE8314A91D22}"
 EndProject

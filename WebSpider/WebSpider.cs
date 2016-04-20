@@ -4,6 +4,7 @@ using System.IO;
 using System.Net;
 using System.Net.Configuration;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Timers;
 using HtmlAgilityPack;
 
@@ -61,12 +62,12 @@ namespace WebSpiderLib
         /// <summary>
         /// Log complet
         /// </summary>
-        public event Action<string> Log;
+        public volatile EventHandler<string> Log;
 
         /// <summary>
         /// Log d'erreur
         /// </summary>
-        public event Action<string> ErrorLog;
+        public volatile EventHandler<string> ErrorLog;
 
         /// <summary>
         /// Evenement se déclenchant sur chaques pages html (URI, HTML string)
@@ -88,20 +89,28 @@ namespace WebSpiderLib
         /// <summary>
         /// Démarrage du spider
         /// </summary>
+        /// <param name="uri"></param>
+        public void Start(Uri uri)
+        {
+            if (!uri.IsAbsoluteUri)
+                throw new WebSpiderException("L'adresse de départ n'est pas absolue");
+            Links.Add(uri);
+            _mainThread = new Thread(Process);
+            _mainThread.Start();
+            TimerFromStart.Start();
+            Log?.AsyncSafeInvoke(this,"Démarrage du WebSpider");
+        }
+
+        /// <summary>
+        /// Démarrage du spider
+        /// </summary>
         /// <param name="url"></param>
         public void Start(string url)
         {
             Init();
             try
             {
-                Uri startUri = new Uri(url);
-                if (!startUri.IsAbsoluteUri)
-                    throw new WebSpiderException("L'adresse de départ n'est pas absolue");
-                Links.Add(startUri);
-                _mainThread = new Thread(Process);
-                _mainThread.Start();
-                TimerFromStart.Start();
-                Log?.Invoke("Démarrage du WebSpider");
+                Start(new Uri(url));
             }
             catch (UriFormatException)
             {
@@ -114,7 +123,7 @@ namespace WebSpiderLib
             _mainThread?.Abort();
             _mainThread = null;
             TimerFromStart.Stop();
-            Log?.Invoke("Arrêt du WebSpider");
+            Log?.AsyncSafeInvoke(this,"Arrêt du WebSpider");
         }
 
         /// <summary>
@@ -145,7 +154,7 @@ namespace WebSpiderLib
             }
             catch(Exception e)
             {
-                ErrorLog?.Invoke("Erreur WebSpider : " + e.Message);
+                ErrorLog?.AsyncSafeInvoke(this,"Erreur WebSpider : " + e.Message);
             }
         }
 
@@ -187,12 +196,12 @@ namespace WebSpiderLib
                             Links.Add(uri);
                     }
                 }
-                Log?.Invoke("Reponse => " + request.RequestUri.AbsoluteUri);
+                Log?.Invoke(this,"Reponse => " + request.RequestUri.AbsoluteUri);
                 ResponseCount++;
             }
             catch (Exception e)
             {
-                ErrorLog?.Invoke("Erreur WebSpider => " + e.Message + " pour " + request.RequestUri.AbsoluteUri);
+                ErrorLog?.AsyncSafeInvoke(this,"Erreur WebSpider => " + e.Message + " pour " + request.RequestUri.AbsoluteUri);
                 Links.Add(request.RequestUri);
             }
             
@@ -203,5 +212,45 @@ namespace WebSpiderLib
     public class WebSpiderException : Exception
     {
         public WebSpiderException(string message) : base("Erreur WebSpider : " + message) { }
+    }
+
+    public static class ThreadExtension
+    {
+
+        /// <summary>
+        /// This method safely calls the each event handler attached to the event. This method uses <see cref="System.Threading.Tasks"/> to
+        /// asynchronously call invoke without any exception handling. As such, if any of the event handlers throw exceptions the application will
+        /// most likely crash when the task is collected. This is an explicit decision since it is really in the hands of the event handler
+        /// creators to make sure they handle issues that occur do to their code. There isn't really a way for the event raiser to know
+        /// what is going on.
+        /// </summary>
+        /// <param name="e">The event to call</param>
+        /// <param name="sender">The sender of the event</param>
+        /// <param name="arg">The argument for the event</param>
+        [System.Diagnostics.DebuggerStepThrough]
+        public static void AsyncSafeInvoke<T>(this EventHandler<T> e, object sender, T arg)
+        {
+            // Used to make a temporary copy of the event to avoid possibility of
+            // a race condition if the last subscriber unsubscribes
+            // immediately after the null check and before the event is raised.
+            EventHandler<T> handler = e;
+            if (handler != null)
+            {
+                // Manually calling all event handlers so that we could capture and aggregate all the
+                // exceptions that are thrown by any of the event handlers attached to this event.  
+                var invocationList = handler.GetInvocationList();
+
+                Task.Factory.StartNew(() =>
+                {
+                    foreach (var @delegate in invocationList)
+                    {
+                        var h = (EventHandler<T>) @delegate;
+                        // Explicitly not catching any exceptions. While there are several possibilities for handling these 
+                        // exceptions, such as a callback, the correct place to handle the exception is in the event handler.
+                        h.Invoke(sender, arg);
+                    }
+                });
+            }
+        }
     }
 }

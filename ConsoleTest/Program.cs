@@ -21,26 +21,26 @@ namespace ConsoleTest
             spider.Filter = Filter;
             
             ConsoleKey key;
-            SpiderOnLog("Appuyez sur une touche (A) Lancer | (Z) Stopper | (Esc) Quitter");
+            SpiderOnLog(null,"Appuyez sur une touche (A) Lancer | (Z) Stopper | (Esc) Quitter");
             do
             {
                 key = Console.ReadKey().Key;
                 Console.Clear();
                 if (key == ConsoleKey.Z)
                     spider.Stop();
-                if(key == ConsoleKey.A)
-                    spider.Start("http://www.dofus.com/fr/mmorpg/encyclopedie/ressources");
+                if (key == ConsoleKey.A)
+                    ;//spider.Start("http://www.dofus.com/fr/mmorpg/encyclopedie/ressources");
             } while (key != ConsoleKey.Escape);
             spider.Stop();
         }
 
-        private static void SpiderOnErrorLog(string s)
+        private static void SpiderOnErrorLog(object sender, string s)
         {
             Console.ForegroundColor = ConsoleColor.Red;
             Console.WriteLine(s);
         }
 
-        private static void SpiderOnLog(string s)
+        private static void SpiderOnLog(object sender, string s)
         {
             Console.ForegroundColor = ConsoleColor.Green;
             Console.WriteLine(s);
