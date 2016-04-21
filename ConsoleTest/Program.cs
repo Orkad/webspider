@@ -16,31 +16,35 @@ namespace ConsoleTest
 
         static void Main(string[] args)
         {
-            spider.Log += SpiderOnLog;
-            spider.ErrorLog += SpiderOnErrorLog;
-            spider.Filter = Filter;
-            
-            ConsoleKey key;
-            SpiderOnLog(null,"Appuyez sur une touche (A) Lancer | (Z) Stopper | (Esc) Quitter");
-            do
+            WebCrawler crawler = new WebCrawler(Filter, WriteGreen, WriteRed);
+            try
             {
-                key = Console.ReadKey().Key;
-                Console.Clear();
-                if (key == ConsoleKey.Z)
-                    spider.Stop();
-                if (key == ConsoleKey.A)
-                    ;//spider.Start("http://www.dofus.com/fr/mmorpg/encyclopedie/ressources");
-            } while (key != ConsoleKey.Escape);
-            spider.Stop();
+                
+                crawler.Explore(new Uri("http://www.dofus.com/fr/mmorpg/encyclopedie/ressources"));
+                Console.ReadKey();
+            }
+            catch (Exception)
+            {
+                // ignored
+            }
+            WriteGreen("Fin de l'exploration : " + crawler.ExploredPages + " pages explorées");
+            Console.ReadKey();
         }
 
-        private static void SpiderOnErrorLog(object sender, string s)
+        private static void OnPageLoaded(WebPage obj)
+        {
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine("Chargement de la page terminé");
+        }
+
+
+        private static void WriteRed( string s)
         {
             Console.ForegroundColor = ConsoleColor.Red;
             Console.WriteLine(s);
         }
 
-        private static void SpiderOnLog(object sender, string s)
+        private static void WriteGreen(string s)
         {
             Console.ForegroundColor = ConsoleColor.Green;
             Console.WriteLine(s);

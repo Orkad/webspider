@@ -16,23 +16,21 @@ namespace WebSpiderForm
 {
     public partial class App : Form
     {
-        private readonly static WebSpider spider = new WebSpider();
         public App()
         {
             InitializeComponent();
-            spider.Filter += Filter;
-            spider.Log += SpiderOnLog;
-            spider.ErrorLog += SpiderOnErrorLog;
         }
 
         private bool RunSpider()
         {
             try
             {
-                if (!WebsiteUp(new Uri(textBoxStartUri.Text)))
+                Uri uri = new Uri(textBoxStartUri.Text);
+                if (!WebsiteUp(uri))
                     return false;
 
-                spider.Start(new Uri(textBoxStartUri.Text));
+                WebCrawler crawler = new WebCrawler(Filter, WriteGreen, WriteRed);
+                crawler.Explore(uri);
                 return true;
             }
             catch (Exception e)
@@ -42,13 +40,13 @@ namespace WebSpiderForm
             }
         }
 
-        private void SpiderOnErrorLog(object sender, string s)
+        private void WriteRed( string s)
         {
             labelLog.ForeColor = Color.Red;
             labelLog.Text = s;
         }
 
-        private void SpiderOnLog(object sender, string s)
+        private void WriteGreen(string s)
         {
             labelLog.ForeColor = Color.Lime;
             labelLog.Text = s;

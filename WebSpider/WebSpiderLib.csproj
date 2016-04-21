@@ -46,6 +46,8 @@
   <ItemGroup>
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Explorator.cs" />
+    <Compile Include="WebCrawler.cs" />
+    <Compile Include="WebPage.cs" />
     <Compile Include="WebSpider.cs" />
   </ItemGroup>
   <ItemGroup>
