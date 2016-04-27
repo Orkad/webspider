@@ -12,7 +12,6 @@ namespace ConsoleTest
 {
     class Program
     {
-        private static readonly WebSpider spider = new WebSpider();
 
         static void Main(string[] args)
         {
