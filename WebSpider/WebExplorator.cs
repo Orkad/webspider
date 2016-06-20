@@ -16,7 +16,7 @@ namespace WebSpiderLib
     /// <summary>
     /// 
     /// </summary>
-    public class WebExplorer : IExplorer
+    public class WebExplorator
     {
         /// <summary>
         /// HashSet assurant l'unicité des liens parcouru
@@ -26,8 +26,9 @@ namespace WebSpiderLib
         private readonly List<Uri> _loadingPages = new List<Uri>();
         private readonly List<Uri> _errorPages = new List<Uri>();
         private readonly List<Uri> _successPages = new List<Uri>();
-        private readonly FilterDelegate ExploreFilter;
-        private int MaxRequest = 1;
+        private readonly string[] _explorationGetFilter;
+        private readonly string _startUrl;
+        private int MaxRequest = 30;
 
 
         public event Action<WebPage> PageLoaded;
@@ -37,9 +38,15 @@ namespace WebSpiderLib
         public int LoadingPages => _loadingPages.Count();
         public bool Active => _loadingPages.Count() != 0;
 
-        public WebExplorer(FilterDelegate exploreFilter)
+        public WebExplorator(string startUrl, string[] explorationGetFilter)
         {
-            ExploreFilter = exploreFilter;
+            _startUrl = startUrl;
+            _explorationGetFilter = explorationGetFilter;
+        }
+
+        public void Start()
+        {
+            Explore(new Uri(_startUrl));
         }
 
         /// <summary>
@@ -50,19 +57,42 @@ namespace WebSpiderLib
         ///          -Absolue
         /// </summary>
         /// <param name="uri"></param>
-        public void Explore(Uri uri)
+        private void Explore(Uri uri)
         {
             //Condition du traitement d'une page : 
             //inexplorée par l'instance courante
             //respect du filtre
             //Absolue
-            if (!_hashSet.Add(uri.AbsoluteUri) || !ExploreFilter(uri) || !uri.IsAbsoluteUri)
+            if (!_hashSet.Add(uri.AbsoluteUri) || !ExplorationFilter(uri) || !uri.IsAbsoluteUri)
                 return;
             PageFound?.Invoke(uri);
             if (LoadingPages > MaxRequest)
                 FillBuffer(uri);
             else
                 WebRequest(uri);
+        }
+
+        private bool ExplorationFilter(Uri uri)
+        {
+            string href = uri.AbsoluteUri;
+            var getParam = uri.ParseQueryString();
+            if (!href.Contains('#') && href.Contains(_startUrl))
+            {
+                if (getParam.Count != 0)
+                {
+                    foreach (var param in getParam)
+                    {
+                        foreach (var filter in _explorationGetFilter)
+                        {
+                            if (param.Key == filter)
+                                return true;
+                        }
+                    }
+                    return false;
+                }
+                return true;
+            }
+            return false;
         }
 
         private void FillBuffer(Uri uri)
