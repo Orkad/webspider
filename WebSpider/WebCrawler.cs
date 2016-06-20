@@ -13,6 +13,9 @@ namespace WebSpiderLib
     /// <returns></returns>
     public delegate bool FilterDelegate(Uri uri);
 
+    /// <summary>
+    /// 
+    /// </summary>
     public class WebCrawler
     {
         /// <summary>
@@ -22,47 +25,58 @@ namespace WebSpiderLib
         private readonly IEnumerable<WebPage> _loadingPages = new List<WebPage>();
         private readonly IEnumerable<WebPage> _errorPages = new List<WebPage>();
         private readonly IEnumerable<WebPage> _successPages = new List<WebPage>();
-        public int ExploredPages => _successPages.Count();
-        private readonly FilterDelegate Filter;
-        private readonly Action<string> Log;
-        private readonly Action<string> ErrorLog;
-        public bool Run = true;
+        private readonly FilterDelegate ExploreFilter;
 
-        public WebCrawler(FilterDelegate filter, Action<string> log, Action<string> errorLog)
+
+        public Action<WebPage> OnPageLoaded;
+        public Action<WebPage> OnPageError;
+        public Action<Uri> OnPageFound;
+        public int ExploredPages => _successPages.Count();
+        public int LoadingPages => _loadingPages.Count();
+        public bool Active => _loadingPages.Count() != 0;
+
+        public WebCrawler(FilterDelegate exploreFilter)
         {
-            Filter = filter;
-            Log = log;
-            ErrorLog = errorLog;
-            Log?.BeginInvoke("WebCrawler instance created",null,this);
+            ExploreFilter = exploreFilter;
         }
 
+        /// <summary>
+        ///     Fonction d'exploration d'une page web (RECURSIF & ASYNC)
+        ///         Condition du traitement d'une page : 
+        ///          -inexplorée par l'instance courante
+        ///          -respect du filtre
+        ///          -Absolue
+        /// </summary>
+        /// <param name="uri"></param>
         public void Explore(Uri uri)
         {
-            if (!_hashSet.Add(uri.AbsoluteUri))
-                ;
-            else if (!Filter(uri))
-                ErrorLog?.Invoke("Filter deny (" + uri.AbsoluteUri + ")");
-            else if (!uri.IsAbsoluteUri)
-                ErrorLog?.Invoke("Can't explore a relative uri (" + uri.AbsoluteUri + ")");
-            else
-            {
-                ((List<WebPage>) _loadingPages).Add(new WebPage(uri, Callback));
-                Log?.BeginInvoke("Request (" + uri.AbsoluteUri + ")",null,this);
-            }
+            //Condition du traitement d'une page : 
+            //inexplorée par l'instance courante
+            //respect du filtre
+            //Absolue
+            if (!_hashSet.Add(uri.AbsoluteUri) || !ExploreFilter(uri) || !uri.IsAbsoluteUri)
+                return;
+            OnPageFound?.Invoke(uri);
+            ((List<WebPage>) _loadingPages).Add(new WebPage(uri, Callback));
         }
 
+        /// <summary>
+        ///     Callback de la fonction d'exploration
+        /// </summary>
+        /// <param name="webPage">la page reçue</param>
         private void Callback(WebPage webPage)
         {
-
+            //Si la page est en erreur elle est alors mise dans la liste des pages d'erreurs
             if (webPage.CurrentState == WebPage.State.Error)
             {
+                OnPageError?.Invoke(webPage);
                 ((List<WebPage>)_errorPages).Add(webPage);
-                ErrorLog?.BeginInvoke("Response (" + webPage.Adress.AbsoluteUri + ")",null,this);
             }
+                
                 
             else if (webPage.CurrentState == WebPage.State.Loaded)
             {
-                Log?.BeginInvoke("Response (" + webPage.Adress.AbsoluteUri + ")",null,this);
+                OnPageLoaded?.Invoke(webPage);
                 ((List<WebPage>)_successPages).Add(webPage);
                 foreach (var uri in webPage.Links)
                     Explore(uri);

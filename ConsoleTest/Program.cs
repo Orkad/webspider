@@ -12,49 +12,85 @@ namespace ConsoleTest
 {
     class Program
     {
+        public static string[] GetFilter = {"cpu"};
+        public const string URL = "https://www.cpubenchmark.net/";
+        public static List<Dictionary<string, string>> Data; 
+        public static WebCrawler crawler = new WebCrawler(Filter)
+        {
+            OnPageLoaded = PageLoaded,
+            OnPageFound = PageFound,
+            OnPageError = PageError,
+        };
 
         static void Main(string[] args)
         {
-            WebCrawler crawler = new WebCrawler(Filter, WriteGreen, WriteRed);
+            Console.WriteLine("Exploration de " + URL);
+            
             try
             {
-                
-                crawler.Explore(new Uri("http://www.dofus.com/fr/mmorpg/encyclopedie/ressources"));
-                Console.ReadKey();
+                crawler.Explore(new Uri(URL));
             }
-            catch (Exception)
+            catch (Exception e)
             {
-                // ignored
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine("Erreur fatale : " + e.Message);
             }
-            WriteGreen("Fin de l'exploration : " + crawler.ExploredPages + " pages explorées");
             Console.ReadKey();
         }
 
-        private static void OnPageLoaded(WebPage obj)
+        private static void PageError(WebPage obj)
         {
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine("Chargement de la page terminé");
-        }
-
-
-        private static void WriteRed( string s)
-        {
+            CrawlerStats();
             Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine(s);
+            Console.WriteLine("Erreur : " + obj.Adress.AbsoluteUri);
         }
 
-        private static void WriteGreen(string s)
+        private static void PageFound(Uri uri)
         {
+            CrawlerStats();
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine("Requète : " + uri.AbsoluteUri);
+            
+        }
+
+        private static void PageLoaded(WebPage obj)
+        {
+            CrawlerStats();
             Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine(s);
+            Console.WriteLine("Réponse : " + obj.Adress.AbsoluteUri);
+            WebParser parser = new WebParser(new Dictionary<string, string>());
+            parser.FieldXPath.Add("id", "id");
+            Data.Add(parser.TryParse(obj.Html));
+        }
+
+        private static void CrawlerStats()
+        {
+            Console.ForegroundColor = ConsoleColor.Blue;
+            if (crawler.LoadingPages == 0)
+                Console.WriteLine("Aucune requète en cours");
+            Console.WriteLine("Requète en cours : " + crawler.LoadingPages);
         }
 
         private static bool Filter(Uri uri)
         {
             string href = uri.AbsoluteUri;
-            if (href.Contains("http://www.dofus.com/fr/mmorpg/encyclopedie/ressources"))
-                if (!href.Contains("?") || href.Contains("?page") && !href.Contains("&"))
-                    return true;
+            var getParam = uri.ParseQueryString();
+            if (!href.Contains('#') && href.Contains(URL))
+            {
+                if (getParam.Count != 0)
+                {
+                    foreach (var param in getParam)
+                    {
+                        foreach (var filter in GetFilter)
+                        {
+                            if (param.Key == filter)
+                                return true;
+                        }
+                    }
+                    return false;
+                }
+                return true;
+            }
             return false;
         }
     }
