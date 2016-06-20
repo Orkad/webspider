@@ -36,6 +36,7 @@
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
+    <Reference Include="System.Web" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="Microsoft.CSharp" />
@@ -44,11 +45,14 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="IExplorer.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="UriExt.cs" />
-    <Compile Include="WebCrawler.cs" />
+    <Compile Include="WebExplorer.cs" />
+    <Compile Include="WebExtractor.cs" />
     <Compile Include="WebPage.cs" />
     <Compile Include="WebParser.cs" />
+    <Compile Include="XPathDataDefinition.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

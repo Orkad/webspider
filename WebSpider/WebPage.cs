@@ -46,7 +46,7 @@ namespace WebSpiderLib
         {
             Adress = uri;
             CurrentState = State.Loading;
-            Html = String.Empty;
+            Html = string.Empty;
             CallBack = callback;
             Links = new List<Uri>();
             WebRequest request = WebRequest.CreateHttp(uri);

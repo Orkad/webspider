@@ -16,26 +16,28 @@ namespace WebSpiderLib
     /// <summary>
     /// 
     /// </summary>
-    public class WebCrawler
+    public class WebExplorer : IExplorer
     {
         /// <summary>
         /// HashSet assurant l'unicité des liens parcouru
         /// </summary>
         private readonly HashSet<string> _hashSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        private readonly IEnumerable<WebPage> _loadingPages = new List<WebPage>();
-        private readonly IEnumerable<WebPage> _errorPages = new List<WebPage>();
-        private readonly IEnumerable<WebPage> _successPages = new List<WebPage>();
+        private readonly Queue<Uri> _uriBuffer = new Queue<Uri>(); 
+        private readonly List<Uri> _loadingPages = new List<Uri>();
+        private readonly List<Uri> _errorPages = new List<Uri>();
+        private readonly List<Uri> _successPages = new List<Uri>();
         private readonly FilterDelegate ExploreFilter;
+        private int MaxRequest = 1;
 
 
-        public Action<WebPage> OnPageLoaded;
-        public Action<WebPage> OnPageError;
-        public Action<Uri> OnPageFound;
+        public event Action<WebPage> PageLoaded;
+        public event Action<WebPage> PageError;
+        public event Action<Uri> PageFound;
         public int ExploredPages => _successPages.Count();
         public int LoadingPages => _loadingPages.Count();
         public bool Active => _loadingPages.Count() != 0;
 
-        public WebCrawler(FilterDelegate exploreFilter)
+        public WebExplorer(FilterDelegate exploreFilter)
         {
             ExploreFilter = exploreFilter;
         }
@@ -56,8 +58,21 @@ namespace WebSpiderLib
             //Absolue
             if (!_hashSet.Add(uri.AbsoluteUri) || !ExploreFilter(uri) || !uri.IsAbsoluteUri)
                 return;
-            OnPageFound?.Invoke(uri);
-            ((List<WebPage>) _loadingPages).Add(new WebPage(uri, Callback));
+            PageFound?.Invoke(uri);
+            if (LoadingPages > MaxRequest)
+                FillBuffer(uri);
+            else
+                WebRequest(uri);
+        }
+
+        private void FillBuffer(Uri uri)
+        {
+            _uriBuffer.Enqueue(uri);
+        }
+
+        private void WebRequest(Uri uri)
+        {
+            _loadingPages.Add(new WebPage(uri, Callback).Adress);
         }
 
         /// <summary>
@@ -69,22 +84,23 @@ namespace WebSpiderLib
             //Si la page est en erreur elle est alors mise dans la liste des pages d'erreurs
             if (webPage.CurrentState == WebPage.State.Error)
             {
-                OnPageError?.Invoke(webPage);
-                ((List<WebPage>)_errorPages).Add(webPage);
+                PageError?.Invoke(webPage);
+                ((List<Uri>)_errorPages).Add(webPage.Adress);
             }
                 
                 
             else if (webPage.CurrentState == WebPage.State.Loaded)
             {
-                OnPageLoaded?.Invoke(webPage);
-                ((List<WebPage>)_successPages).Add(webPage);
+                PageLoaded?.Invoke(webPage);
+                ((List<Uri>)_successPages).Add(webPage.Adress);
                 foreach (var uri in webPage.Links)
                     Explore(uri);
             }
             else
                 throw new Exception("WebCrawler Fatal error");
-            ((List<WebPage>)_loadingPages).Remove(webPage);
+            _loadingPages.Remove(webPage.Adress);
+            if (_uriBuffer.Count != 0)
+                WebRequest(_uriBuffer.Dequeue());
         }
     }
-
 }

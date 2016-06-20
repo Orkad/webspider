@@ -29,8 +29,8 @@ namespace WebSpiderForm
                 if (!WebsiteUp(uri))
                     return false;
 
-                WebCrawler crawler = new WebCrawler(Filter, WriteGreen, WriteRed);
-                crawler.Explore(uri);
+                //WebCrawler crawler = new WebCrawler(Filter, WriteGreen, WriteRed);
+                //crawler.Explore(uri);
                 return true;
             }
             catch (Exception e)

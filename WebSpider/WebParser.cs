@@ -21,11 +21,16 @@ namespace WebSpiderLib
 
         public Dictionary<string, string> TryParse(string html)
         {
-            XDocument doc = XDocument.Parse(html);
+            HtmlDocument doc = new HtmlDocument();
+            doc.LoadHtml(html);
             Dictionary<string, string> dictionary = new Dictionary<string, string>();
             foreach (var field in FieldXPath)
             {
-                dictionary.Add(field.Key,doc.Root.XPathSelectElement(field.Value).Value);
+                string paramName = field.Key;
+                string value = doc.DocumentNode.SelectSingleNode(field.Value)?.InnerText;
+                if (value == null)
+                    throw new Exception("La page web ne correspond pas à la definition de l'objet");
+                dictionary.Add(paramName,value);
             }
             return dictionary;
         } 

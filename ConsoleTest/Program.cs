@@ -12,23 +12,28 @@ namespace ConsoleTest
 {
     class Program
     {
-        public static string[] GetFilter = {"cpu"};
-        public const string URL = "https://www.cpubenchmark.net/";
-        public static List<Dictionary<string, string>> Data; 
-        public static WebCrawler crawler = new WebCrawler(Filter)
-        {
-            OnPageLoaded = PageLoaded,
-            OnPageFound = PageFound,
-            OnPageError = PageError,
-        };
+
+        static string[] GetFilter = { "cpu", "id" };
+        static string URL = "https://www.cpubenchmark.net/";
+        private static WebExtractor extractor;
 
         static void Main(string[] args)
         {
+            
+            
+            XPathDataDefinition dataDefinition = new XPathDataDefinition();
+            dataDefinition.AddXPathMatching("cpu", "//table[@class=\"desc\"]//span");
+            dataDefinition.AddXPathMatching("benchmark", "//table[@class=\"desc\"]//tr[2]/td[2]/span");
             Console.WriteLine("Exploration de " + URL);
+            WebExplorer explorer = new WebExplorer(Filter);
+            extractor = new WebExtractor(explorer, dataDefinition);
+            extractor.SuccessParse += ExtractorOnSuccessParse;
+            extractor.FailParse += PageError;
+            
             
             try
             {
-                crawler.Explore(new Uri(URL));
+                explorer.Explore(new Uri(URL));
             }
             catch (Exception e)
             {
@@ -38,37 +43,21 @@ namespace ConsoleTest
             Console.ReadKey();
         }
 
+        private static void ExtractorOnSuccessParse(WebPage webPage, Dictionary<string, string> dataDictionary)
+        {
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine("Nouvel objet trouvé !        TOTAL = " + extractor.Data.Count);
+            foreach (var field in dataDictionary)
+            {
+                Console.WriteLine("[" + field.Key + "] = " + field.Value);
+            }
+        }
+
+
         private static void PageError(WebPage obj)
         {
-            CrawlerStats();
-            Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine("Erreur : " + obj.Adress.AbsoluteUri);
-        }
-
-        private static void PageFound(Uri uri)
-        {
-            CrawlerStats();
             Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine("Requète : " + uri.AbsoluteUri);
-            
-        }
-
-        private static void PageLoaded(WebPage obj)
-        {
-            CrawlerStats();
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine("Réponse : " + obj.Adress.AbsoluteUri);
-            WebParser parser = new WebParser(new Dictionary<string, string>());
-            parser.FieldXPath.Add("id", "id");
-            Data.Add(parser.TryParse(obj.Html));
-        }
-
-        private static void CrawlerStats()
-        {
-            Console.ForegroundColor = ConsoleColor.Blue;
-            if (crawler.LoadingPages == 0)
-                Console.WriteLine("Aucune requète en cours");
-            Console.WriteLine("Requète en cours : " + crawler.LoadingPages);
+            Console.WriteLine("Erreur : " + obj.Adress.AbsoluteUri);
         }
 
         private static bool Filter(Uri uri)
