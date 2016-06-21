@@ -6,7 +6,7 @@ using HtmlAgilityPack;
 
 namespace WebSpiderLib.Explore
 {
-    internal class WebPage
+    public class WebPage
     {
         /// <summary>
         /// Adresse de la page

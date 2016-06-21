@@ -11,7 +11,7 @@ namespace WebSpiderLib.Explore
 
 
 // ClientGetAsync issues the async request.
-    class ClientGetAsync
+    public static class WebPageLoader
     {
         public class RequestState
         {
@@ -22,8 +22,10 @@ namespace WebSpiderLib.Explore
             public Decoder StreamDecode = Encoding.UTF8.GetDecoder();
             public Action<WebPage> LoadCallback;
 
-            public RequestState()
+            public RequestState(WebRequest request, Action<WebPage> loadCallback)
             {
+                Request = request;
+                LoadCallback = loadCallback;
                 BufferRead = new byte[BUFFER_SIZE];
                 StrData = new StringBuilder(String.Empty);
                 Request = null;
@@ -33,17 +35,13 @@ namespace WebSpiderLib.Explore
 
         public const int BUFFER_SIZE = 1024;
 
-        public ClientGetAsync(Uri uri, Action<WebPage> callback)
+        public static void Load(Uri uri, Action<WebPage> callback)
         {
             
             // Création de la requète
             WebRequest wreq = WebRequest.Create(uri);
             // Création de l'état de la requète
-            RequestState rs = new RequestState
-            {
-                Request = wreq,
-                LoadCallback = callback
-            };
+            RequestState rs = new RequestState(wreq, callback);
             // Début de la requète asynchrone
             wreq.BeginGetResponse(RespCallback, rs);
         }
