@@ -1,10 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.IO;
-using System.Runtime.Serialization.Formatters.Binary;
 using HtmlAgilityPack;
 
-namespace WebSpiderLib.Parsing
+namespace WebSpiderLib.Extract
 {
     public class WebExtractor
     {
@@ -12,28 +10,35 @@ namespace WebSpiderLib.Parsing
 
         public readonly List<Data> Data = new List<Data>();
 
-        public event Action<WebPage,Data> SuccessParse;
-        public event Action<WebPage> FailParse;  
+        public event Action<Data> SuccessParse;
+        public event Action FailParse;
+        public event Action ErrorParse;
 
-        public WebExtractor(WebExplorator explorer, DataDefinition dataDefinition)
+        public WebExtractor(DataDefinition dataDefinition)
         {
-            explorer.PageLoaded += OnPageLoaded;
             DataDefinition = dataDefinition;
         }
 
-        private void OnPageLoaded(WebPage webPage)
+        public void Extract(string html)
         {
             try
             {
                 var document = new HtmlDocument();
-                document.LoadHtml(webPage.Html);
+                document.LoadHtml(html);
                 var data = DataDefinition.Parse(document);
-                Data.Add(data);
-                SuccessParse?.Invoke(webPage, data);
+                if (data != null)
+                {
+                    Data.Add(data);
+                    SuccessParse?.Invoke(data);
+                }
+                else
+                {
+                    FailParse?.Invoke();
+                }
             }
             catch (Exception)
             {
-                FailParse?.Invoke(webPage);
+                ErrorParse?.Invoke();
             }
         }
 
@@ -46,7 +51,5 @@ namespace WebSpiderLib.Parsing
         {
             Serializer.Save(path,Data);
         }
-
-        
     }
 }

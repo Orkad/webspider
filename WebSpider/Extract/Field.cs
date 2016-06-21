@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace WebSpiderLib.Parsing
+namespace WebSpiderLib.Extract
 {
     [Serializable]
     public class Field

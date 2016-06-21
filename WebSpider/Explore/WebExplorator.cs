@@ -1,10 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
-namespace WebSpiderLib
+namespace WebSpiderLib.Explore
 {
     /// <summary>
     /// Définition d'un type de fonction pour un filtre
@@ -28,11 +26,11 @@ namespace WebSpiderLib
         private readonly List<Uri> _successPages = new List<Uri>();
         private readonly string[] _explorationGetFilter;
         private readonly string _startUrl;
-        private int MaxRequest = 30;
+        private int MaxRequest = 5;
 
 
-        public event Action<WebPage> PageLoaded;
-        public event Action<WebPage> PageError;
+        public event Action<WebPageOld> PageLoaded;
+        public event Action<WebPageOld> PageError;
         public event Action<Uri> PageFound;
         public int ExploredPages => _successPages.Count();
         public int LoadingPages => _loadingPages.Count();
@@ -102,24 +100,24 @@ namespace WebSpiderLib
 
         private void WebRequest(Uri uri)
         {
-            _loadingPages.Add(new WebPage(uri, Callback).Adress);
+            _loadingPages.Add(new WebPageOld(uri, Callback).Adress);
         }
 
         /// <summary>
         ///     Callback de la fonction d'exploration
         /// </summary>
         /// <param name="webPage">la page reçue</param>
-        private void Callback(WebPage webPage)
+        private void Callback(WebPageOld webPage)
         {
             //Si la page est en erreur elle est alors mise dans la liste des pages d'erreurs
-            if (webPage.CurrentState == WebPage.State.Error)
+            if (webPage.CurrentState == WebPageOld.State.Error)
             {
                 PageError?.Invoke(webPage);
                 ((List<Uri>)_errorPages).Add(webPage.Adress);
             }
                 
                 
-            else if (webPage.CurrentState == WebPage.State.Loaded)
+            else if (webPage.CurrentState == WebPageOld.State.Loaded)
             {
                 PageLoaded?.Invoke(webPage);
                 ((List<Uri>)_successPages).Add(webPage.Adress);

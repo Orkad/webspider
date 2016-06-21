@@ -1,8 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using HtmlAgilityPack;
 
-namespace WebSpiderLib.Parsing
+namespace WebSpiderLib.Extract
 {
     public class DataDefinition
     {
@@ -18,7 +17,10 @@ namespace WebSpiderLib.Parsing
             Data data = new Data();
             foreach (var fieldDef in FieldDefinition)
             {
-                data.Fields.Add(fieldDef.Parse(document));
+                var parsedField = fieldDef.Parse(document);
+                if (parsedField == null)
+                    return null;
+                data.Fields.Add(parsedField);
             }
             return data;
         }

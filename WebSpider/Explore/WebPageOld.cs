@@ -4,9 +4,9 @@ using System.IO;
 using System.Net;
 using HtmlAgilityPack;
 
-namespace WebSpiderLib
+namespace WebSpiderLib.Explore
 {
-    public class WebPage
+    public class WebPageOld
     {
         /// <summary>
         /// Web page state
@@ -26,7 +26,7 @@ namespace WebSpiderLib
         /// <summary>
         /// Retour dans le cas ou le chargement s'est bien passé
         /// </summary>
-        private Action<WebPage> CallBack { get; }
+        private Action<WebPageOld> CallBack { get; }
 
         /// <summary>
         /// Code Html de la page
@@ -42,7 +42,7 @@ namespace WebSpiderLib
         /// Charge une page web
         /// </summary>
         /// <param name="uri"></param>
-        public WebPage(Uri uri, Action<WebPage> callback)
+        public WebPageOld(Uri uri, Action<WebPageOld> callback)
         {
             Adress = uri;
             CurrentState = State.Loading;
@@ -68,45 +68,58 @@ namespace WebSpiderLib
         /// <param name="ar"></param>
         private void OnLoaded(IAsyncResult ar)
         {
-            HttpWebRequest request = (HttpWebRequest)ar.AsyncState;
-            try
+            lock (this)
             {
-                HttpWebResponse response = (HttpWebResponse)request.EndGetResponse(ar);
-
-                Stream streamResponse = response.GetResponseStream();
-                StreamReader reader = new StreamReader(streamResponse);
-                Html = reader.ReadToEnd();
-                HtmlDocument doc = new HtmlDocument();
-                doc.LoadHtml(Html);
-
-                var links = doc.DocumentNode.Descendants("a");
-
-                foreach (var link in links)
+                HttpWebRequest request = (HttpWebRequest)ar.AsyncState;
+                try
                 {
-                    string href = link.Attributes["href"]?.Value;
-                    if (href != null)
+                    HttpWebResponse response = (HttpWebResponse)request.EndGetResponse(ar);
+                    Stream responseStream = response.GetResponseStream();
+
+                    using (var reader = new StreamReader(responseStream))
+                        Html = reader.ReadToEnd();
+                    HtmlDocument doc = new HtmlDocument();
+                    doc.LoadHtml(Html);
+
+                    var links = doc.DocumentNode.Descendants("a");
+
+                    foreach (var link in links)
                     {
-                        Uri uri = new Uri(href, UriKind.RelativeOrAbsolute);
-                        if (!uri.IsAbsoluteUri)
-                            uri = new Uri(request.RequestUri, uri);
-                        AddLink(uri);
+                        string href = link.Attributes["href"]?.Value;
+                        if (href != null)
+                        {
+                            Uri uri = new Uri(href, UriKind.RelativeOrAbsolute);
+                            if (!uri.IsAbsoluteUri)
+                                uri = new Uri(request.RequestUri, uri);
+                            AddLink(uri);
+                        }
                     }
+                    CurrentState = State.Loaded;
                 }
-                CurrentState = State.Loaded;
+                catch (Exception e)
+                {
+                    System.Diagnostics.Debug.WriteLine(request.Address);
+                    System.Diagnostics.Debug.WriteLine(e.Message);
+                    CurrentState = State.Error;
+                }
+                CallBack.Invoke(this);
             }
-            catch (Exception)
-            {
-                CurrentState = State.Error;
-            }
-            CallBack.Invoke(this);
         }
 
-        public static bool operator ==(WebPage wp1, WebPage wp2)
+        private void ReadCallback(IAsyncResult ar)
+        {
+            var stream = (Stream)ar.AsyncState;
+            stream.EndRead(ar);
+
+
+        }
+
+        public static bool operator ==(WebPageOld wp1, WebPageOld wp2)
         {
             return wp1.Adress.AbsoluteUri == wp2.Adress.AbsoluteUri;
         }
 
-        public static bool operator !=(WebPage wp1, WebPage wp2)
+        public static bool operator !=(WebPageOld wp1, WebPageOld wp2)
         {
             return !(wp1 == wp2);
         }

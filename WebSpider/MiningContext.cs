@@ -3,7 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using WebSpiderLib.Parsing;
+using WebSpiderLib.Explore;
+using WebSpiderLib.Extract;
 
 namespace WebSpiderLib
 {
@@ -12,15 +13,18 @@ namespace WebSpiderLib
         public WebExplorator Explorator;
         public WebExtractor Extractor;
 
-        public event Action<WebPage> Explore; 
-        public event Action<WebPage, Data> Extract;
+        public event Action<WebPageOld> Explore; 
+        public event Action<Data> Extract;
 
         public MiningContext(string url, string[] exploratorGetFilter, DataDefinition dataDefinition)
         {
             Explorator = new WebExplorator(url,exploratorGetFilter);
-            Extractor = new WebExtractor(Explorator,dataDefinition);
-            Explorator.PageLoaded += page => Explore?.Invoke(page);
-            Extractor.SuccessParse += (page, data) => Extract?.Invoke(page, data);
+            Extractor = new WebExtractor(dataDefinition);
+            Explorator.PageLoaded += page => {
+                Explore?.Invoke(page);
+                Extractor.Extract(page.Html);
+            };
+            Extractor.SuccessParse += (data) => Extract?.Invoke(data);
         }
 
         public void Run()

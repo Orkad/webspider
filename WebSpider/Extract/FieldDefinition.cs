@@ -1,7 +1,6 @@
-﻿using System;
-using HtmlAgilityPack;
+﻿using HtmlAgilityPack;
 
-namespace WebSpiderLib.Parsing
+namespace WebSpiderLib.Extract
 {
     public class FieldDefinition
     {
@@ -17,8 +16,8 @@ namespace WebSpiderLib.Parsing
         public Field Parse(HtmlDocument document)
         {
             string value = document.DocumentNode.SelectSingleNode(XPath)?.InnerText.Trim();
-            if(value == null)
-                throw new Exception("Pas de valeur trouvé pour la requète XPath");
+            if (value == null)
+                return null;
             return new Field(Name, value);
         }
     }
