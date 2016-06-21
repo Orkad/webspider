@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -14,6 +15,7 @@ namespace ConsoleTest
 {
     class Program
     {
+        private static List<Data> data;
         static void Main(string[] args)
         {
             DataDefinition dataDefinition = new DataDefinition();
@@ -22,6 +24,8 @@ namespace ConsoleTest
             MiningContext context = new MiningContext("https://www.cpubenchmark.net/", new[] { "cpu", "id" },dataDefinition);
             context.Extract += ContextOnExtract;
             context.Explore += ContextOnExplore;
+            context.ExploreError += ContextOnExploreError;
+            data = context.Extractor.Data;
             context.Run();
 
 
@@ -30,7 +34,13 @@ namespace ConsoleTest
             context.SaveDataMining("data.mining");
         }
 
-        private static void ContextOnExplore(WebPageOld webPage)
+        private static void ContextOnExploreError(Uri uri)
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine("Exploration : " + uri.AbsoluteUri);
+        }
+
+        private static void ContextOnExplore(WebPage webPage)
         {
             Console.ForegroundColor = ConsoleColor.Cyan;
             Console.WriteLine("Exploration : " + webPage.Adress.AbsoluteUri);

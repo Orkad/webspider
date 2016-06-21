@@ -19,29 +19,53 @@ namespace WebSpiderLib.Explore
         /// <summary>
         /// HashSet assurant l'unicité des liens parcouru
         /// </summary>
-        private readonly HashSet<string> _hashSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        private readonly Queue<Uri> _uriBuffer = new Queue<Uri>(); 
-        private readonly List<Uri> _loadingPages = new List<Uri>();
-        private readonly List<Uri> _errorPages = new List<Uri>();
-        private readonly List<Uri> _successPages = new List<Uri>();
+        private readonly HashSet<Uri> _uriSet = new HashSet<Uri>();
+
+        /// <summary>
+        /// Buffer stockant les uri en attente de traitement
+        /// </summary>
+        private readonly Queue<Uri> _uriBuffer = new Queue<Uri>();
+
+        /// <summary>
+        /// Pages en attente d'une réponse
+        /// </summary>
+        private readonly List<Uri> _loadingPages = new List<Uri>(); 
+
+        /// <summary>
+        /// Filtre applicable sur les paramètres get de l'uri
+        /// </summary>
         private readonly string[] _explorationGetFilter;
+
+        /// <summary>
+        /// Uri de départ
+        /// </summary>
         private readonly string _startUrl;
-        private int MaxRequest = 5;
+
+        /// <summary>
+        /// Nombre de requette maximales
+        /// </summary>
+        private int MaxRequest = 1;
 
 
-        public event Action<WebPageOld> PageLoaded;
-        public event Action<WebPageOld> PageError;
-        public event Action<Uri> PageFound;
-        public int ExploredPages => _successPages.Count();
-        public int LoadingPages => _loadingPages.Count();
-        public bool Active => _loadingPages.Count() != 0;
 
+        public event Action<WebPage> PageLoaded;
+        public event Action<Uri> PageError; 
+        public event Action<Uri> PageFound; 
+
+        /// <summary>
+        /// Constructeur d'un explorateur web
+        /// </summary>
+        /// <param name="startUrl">Url de départ</param>
+        /// <param name="explorationGetFilter">Filtre applicable sur les paramètres get des url allant être parcouru ex : { id, nom } ne prendra que les pages avec un paramètre id ou nom ou les 2</param>
         public WebExplorator(string startUrl, string[] explorationGetFilter)
         {
             _startUrl = startUrl;
             _explorationGetFilter = explorationGetFilter;
         }
 
+        /// <summary>
+        /// Démarrage de l'explorateur web (explore la première page, en trouve d'autres respectant le filtre, les explore de la meme manière recursivement)
+        /// </summary>
         public void Start()
         {
             Explore(new Uri(_startUrl));
@@ -61,15 +85,20 @@ namespace WebSpiderLib.Explore
             //inexplorée par l'instance courante
             //respect du filtre
             //Absolue
-            if (!_hashSet.Add(uri.AbsoluteUri) || !ExplorationFilter(uri) || !uri.IsAbsoluteUri)
+            if (!_uriSet.Add(uri) || !ExplorationFilter(uri) || !uri.IsAbsoluteUri)
                 return;
             PageFound?.Invoke(uri);
-            if (LoadingPages > MaxRequest)
+            if (_loadingPages.Count > MaxRequest)
                 FillBuffer(uri);
             else
                 WebRequest(uri);
         }
 
+        /// <summary>
+        /// Filtre Get sur la page web
+        /// </summary>
+        /// <param name="uri"></param>
+        /// <returns></returns>
         private bool ExplorationFilter(Uri uri)
         {
             string href = uri.AbsoluteUri;
@@ -93,42 +122,39 @@ namespace WebSpiderLib.Explore
             return false;
         }
 
+        /// <summary>
+        ///     Fonction de remplissage du buffer
+        /// </summary>
+        /// <param name="uri"></param>
         private void FillBuffer(Uri uri)
         {
             _uriBuffer.Enqueue(uri);
         }
 
+        /// <summary>
+        ///     Genere une requette web asynchrone 
+        /// </summary>
+        /// <param name="uri"></param>
         private void WebRequest(Uri uri)
         {
-            _loadingPages.Add(new WebPageOld(uri, Callback).Adress);
+            WebPageLoader.Load(uri, LoadSuccess, LoadError);
+            _loadingPages.Add(uri);
         }
 
-        /// <summary>
-        ///     Callback de la fonction d'exploration
-        /// </summary>
-        /// <param name="webPage">la page reçue</param>
-        private void Callback(WebPageOld webPage)
+        private void LoadSuccess(WebPage webPage)
         {
-            //Si la page est en erreur elle est alors mise dans la liste des pages d'erreurs
-            if (webPage.CurrentState == WebPageOld.State.Error)
-            {
-                PageError?.Invoke(webPage);
-                ((List<Uri>)_errorPages).Add(webPage.Adress);
-            }
-                
-                
-            else if (webPage.CurrentState == WebPageOld.State.Loaded)
-            {
-                PageLoaded?.Invoke(webPage);
-                ((List<Uri>)_successPages).Add(webPage.Adress);
-                foreach (var uri in webPage.Links)
-                    Explore(uri);
-            }
-            else
-                throw new Exception("WebCrawler Fatal error");
+            PageLoaded?.Invoke(webPage);
+            foreach (var uri in webPage.Links)
+                Explore(uri);
             _loadingPages.Remove(webPage.Adress);
             if (_uriBuffer.Count != 0)
                 WebRequest(_uriBuffer.Dequeue());
+        }
+
+        private void LoadError(Uri uri)
+        {
+            _loadingPages.Remove(uri);
+            PageError?.Invoke(uri);
         }
     }
 }

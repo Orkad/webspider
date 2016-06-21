@@ -13,7 +13,8 @@ namespace WebSpiderLib
         public WebExplorator Explorator;
         public WebExtractor Extractor;
 
-        public event Action<WebPageOld> Explore; 
+        public event Action<WebPage> Explore;
+        public event Action<Uri> ExploreError; 
         public event Action<Data> Extract;
 
         public MiningContext(string url, string[] exploratorGetFilter, DataDefinition dataDefinition)
@@ -24,6 +25,7 @@ namespace WebSpiderLib
                 Explore?.Invoke(page);
                 Extractor.Extract(page.Html);
             };
+            Explorator.PageError += uri => ExploreError?.Invoke(uri);
             Extractor.SuccessParse += (data) => Extract?.Invoke(data);
         }
 
