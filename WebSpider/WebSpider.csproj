@@ -40,7 +40,6 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Explore\HttpPageLoader.cs" />
     <Compile Include="Explore\WebPageLoader.cs" />
     <Compile Include="Explore\WebPage.cs" />
     <Compile Include="MiningContext.cs" />
@@ -50,6 +49,7 @@
     <Compile Include="Extract\WebExtractor.cs" />
     <Compile Include="Extract\DataDefinition.cs" />
     <Compile Include="Extract\Serializer.cs" />
+    <Compile Include="MiningTester.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Explore\UriExt.cs" />
     <Compile Include="Explore\WebExplorator.cs" />
