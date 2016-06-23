@@ -93,7 +93,7 @@
       <Project>{c1cd6b4f-6c0a-44d0-8d97-6c3d20aa68cf}</Project>
       <Name>ConsoleLog</Name>
     </ProjectReference>
-    <ProjectReference Include="..\WebSpider\WebSpiderLib.csproj">
+    <ProjectReference Include="..\WebSpider\WebSpider.csproj">
       <Project>{75d3692b-9d08-4f3a-8bdc-63c53215b6f8}</Project>
       <Name>WebSpiderLib</Name>
     </ProjectReference>
