@@ -21,7 +21,7 @@ namespace WebSpiderLib.Explore
         /// <summary>
         /// Liens présent sur la page
         /// </summary>
-        public List<Uri> Links { get; }
+        public List<Uri> Links { get; } = new List<Uri>();
 
         /// <summary>
         /// Constructeur d'une page web (la requete web dois etre effectuée avant)
@@ -29,11 +29,26 @@ namespace WebSpiderLib.Explore
         /// <param name="adress"></param>
         /// <param name="html"></param>
         /// <param name="links"></param>
-        internal WebPage(Uri adress, string html, List<Uri> links)
+        internal WebPage(Uri adress, string html)
         {
             Adress = adress;
             Html = html;
-            Links = links;
+            HtmlDocument doc = new HtmlDocument();
+            doc.LoadHtml(html);
+
+            var nodes = doc.DocumentNode.Descendants("a");
+
+            foreach (var link in nodes)
+            {
+                string href = link.Attributes["href"]?.Value;
+                if (href != null)
+                {
+                    Uri uri = new Uri(href, UriKind.RelativeOrAbsolute);
+                    if (!uri.IsAbsoluteUri)
+                        uri = new Uri(adress, uri);
+                    Links.Add(uri);
+                }
+            }
         }
     }
 }

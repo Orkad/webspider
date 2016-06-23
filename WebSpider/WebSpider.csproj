@@ -41,6 +41,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Explore\ExplorationFilter.cs" />
     <Compile Include="Explore\WebPageLoader.cs" />
     <Compile Include="Explore\WebPage.cs" />
     <Compile Include="MiningContext.cs" />

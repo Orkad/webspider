@@ -21,12 +21,13 @@ namespace ConsoleTest
             DataDefinition dataDefinitionCpuBenchmark = new DataDefinition();
             dataDefinitionCpuBenchmark.AddXPathMatching("cpu", "//table[@class=\"desc\"]//span");
             dataDefinitionCpuBenchmark.AddXPathMatching("benchmark", "//table[@class=\"desc\"]//tr[2]/td[2]/span");
-            MiningTester tester = new MiningTester(dataDefinitionCpuBenchmark);
-            tester.TestResult += TesterOnTestResult;
-            tester.TryUri(new Uri("https://www.cpubenchmark.net/cpu.php?cpu=Intel+Xeon+E5-2679+v4+%40+2.50GHz&id=2805"));
-            Console.ReadKey();
 
-            MiningContext context = new MiningContext("https://www.cpubenchmark.net/", new[] { "cpu", "id" }, dataDefinitionCpuBenchmark);
+            DataDefinition RDC_DataDef = new DataDefinition();
+            RDC_DataDef.AddXPathMatching("produit", "//div[@class=\"ficheProduit_brandName\"]/../h2");
+            RDC_DataDef.AddXPathMatching("ref", "//h3[@class='ficheProduit_reference']");
+            RDC_DataDef.AddXPathMatching("price", ".//*[@class='newPrice']");
+
+            MiningContext context = new MiningContext("http://www.rueducommerce.fr/Composants", new string[0], RDC_DataDef);
             context.Extract += ContextOnExtract;
             context.Explore += ContextOnExplore;
             context.ExploreError += ContextOnExploreError;

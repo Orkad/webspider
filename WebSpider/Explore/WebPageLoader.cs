@@ -5,6 +5,7 @@ using System.Net;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Web;
 using HtmlAgilityPack;
 
 namespace WebSpiderLib.Explore
@@ -87,7 +88,7 @@ namespace WebSpiderLib.Explore
                 {
                     // Append the recently read data to the RequestData stringbuilder
                     // object contained in RequestState.
-                    rs.StrData.Append(Encoding.ASCII.GetString(rs.BufferRead, 0, read));
+                    rs.StrData.Append(Encoding.UTF8.GetString(rs.BufferRead, 0, read));
                     // Continue reading data until 
                     // responseStream.EndRead returns –1.
                     responseStream.BeginRead(rs.BufferRead, 0, BUFFER_SIZE, ReadCallBack, rs);
@@ -95,27 +96,10 @@ namespace WebSpiderLib.Explore
                 else
                 {
                     string html = rs.StrData.ToString();
-                    HtmlDocument doc = new HtmlDocument();
-                    doc.LoadHtml(html);
-
-                    var nodes = doc.DocumentNode.Descendants("a");
-                    var links = new List<Uri>();
-
-                    foreach (var link in nodes)
-                    {
-                        string href = link.Attributes["href"]?.Value;
-                        if (href != null)
-                        {
-                            Uri uri = new Uri(href, UriKind.RelativeOrAbsolute);
-                            if (!uri.IsAbsoluteUri)
-                                uri = new Uri(rs.Request.RequestUri, uri);
-                            links.Add(uri);
-                        }
-                    }
                     // Close down the response stream.
                     responseStream.Close();
 
-                    rs.LoadSuccess(new WebPage(rs.Request.RequestUri, html, links));
+                    rs.LoadSuccess(new WebPage(rs.Request.RequestUri, HttpUtility.HtmlDecode(html)));
 
                 }
 

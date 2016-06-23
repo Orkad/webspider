@@ -1,4 +1,5 @@
-﻿using HtmlAgilityPack;
+﻿using System.Text.RegularExpressions;
+using HtmlAgilityPack;
 
 namespace WebSpiderLib.Extract
 {
@@ -18,6 +19,8 @@ namespace WebSpiderLib.Extract
             string value = document.DocumentNode.SelectSingleNode(XPath)?.InnerText.Trim();
             if (value == null)
                 return null;
+            value = Regex.Replace(value, @"\t|\r", "");
+            value = Regex.Replace(value, @"\n", " ");
             return new Field(Name, value);
         }
     }
