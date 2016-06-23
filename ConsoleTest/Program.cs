@@ -23,14 +23,19 @@ namespace ConsoleTest
             dataDefinitionCpuBenchmark.AddXPathMatching("benchmark", "//table[@class=\"desc\"]//tr[2]/td[2]/span");
 
             DataDefinition RDC_DataDef = new DataDefinition();
-            RDC_DataDef.AddXPathMatching("produit", "//div[@class=\"ficheProduit_brandName\"]/../h2");
+            RDC_DataDef.AddXPathMatching("produit", "//span[@class='productName']");
             RDC_DataDef.AddXPathMatching("ref", "//h3[@class='ficheProduit_reference']");
             RDC_DataDef.AddXPathMatching("price", ".//*[@class='newPrice']");
 
-            MiningContext context = new MiningContext("http://www.rueducommerce.fr/Composants", new string[0], RDC_DataDef);
+            ExplorationFilter RDC_UriValidator = new ExplorationFilter();
+            RDC_UriValidator.ValidBaseUriList.Add(new Uri("http://www.rueducommerce.fr/Composants/Processeur/"));
+            RDC_UriValidator.ValidBaseUriList.Add(new Uri("http://www.rueducommerce.fr/Composants/54-Comparatif-Processeur/"));
+
+            MiningContext context = new MiningContext(new Uri("http://www.rueducommerce.fr/Composants/54-Comparatif-Processeur/"), RDC_UriValidator.Validate, RDC_DataDef);
             context.Extract += ContextOnExtract;
             context.Explore += ContextOnExplore;
             context.ExploreError += ContextOnExploreError;
+            context.Done += () => Console.WriteLine("\n\nExploration terminée");
             data = context.Extractor.Data;
             context.Run();
 
@@ -66,7 +71,8 @@ namespace ConsoleTest
 
         private static void ContextOnExplore(WebPage webPage)
         {
-            Console.ForegroundColor = ConsoleColor.Cyan;
+            Console.WriteLine();
+            Console.ForegroundColor = ConsoleColor.Yellow;
             Console.WriteLine("Exploration : " + webPage.Adress.AbsoluteUri);
         }
 

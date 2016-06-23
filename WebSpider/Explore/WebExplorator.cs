@@ -5,13 +5,6 @@ using System.Linq;
 namespace WebSpiderLib.Explore
 {
     /// <summary>
-    /// Définition d'un type de fonction pour un filtre
-    /// </summary>
-    /// <param name="uri">Adresse a filtrer</param>
-    /// <returns></returns>
-    public delegate bool FilterDelegate(Uri uri);
-
-    /// <summary>
     /// 
     /// </summary>
     public class WebExplorator
@@ -32,35 +25,33 @@ namespace WebSpiderLib.Explore
         private readonly List<Uri> _loadingPages = new List<Uri>(); 
 
         /// <summary>
-        /// Filtre applicable sur les paramètres get de l'uri
-        /// </summary>
-        private readonly string[] _explorationGetFilter;
-
-        /// <summary>
         /// Uri de départ
         /// </summary>
-        private readonly string _startUrl;
+        private readonly Uri _startUri;
 
         /// <summary>
         /// Nombre de requette maximales
         /// </summary>
         private int MaxRequest = 1;
 
+        private readonly Func<Uri, bool> _uriValidator;
+
 
 
         public event Action<WebPage> PageLoaded;
         public event Action<Uri> PageError; 
-        public event Action<Uri> PageFound; 
+        public event Action<Uri> PageFound;
+        public event Action Done; 
 
         /// <summary>
         /// Constructeur d'un explorateur web
         /// </summary>
-        /// <param name="startUrl">Url de départ</param>
-        /// <param name="explorationGetFilter">Filtre applicable sur les paramètres get des url allant être parcouru ex : { id, nom } ne prendra que les pages avec un paramètre id ou nom ou les 2</param>
-        public WebExplorator(string startUrl, string[] explorationGetFilter)
+        /// <param name="startUri">Url de départ</param>
+        /// <param name="uriValidator">Fonction définissant si une uri est valide ou non pour l'exploration</param>
+        public WebExplorator(Uri startUri, Func<Uri, bool> uriValidator)
         {
-            _startUrl = startUrl;
-            _explorationGetFilter = explorationGetFilter;
+            _startUri = startUri;
+            _uriValidator = uriValidator;
         }
 
         /// <summary>
@@ -68,7 +59,7 @@ namespace WebSpiderLib.Explore
         /// </summary>
         public void Start()
         {
-            Explore(new Uri(_startUrl));
+            Explore(_startUri);
         }
 
         /// <summary>
@@ -85,41 +76,13 @@ namespace WebSpiderLib.Explore
             //inexplorée par l'instance courante
             //respect du filtre
             //Absolue
-            if (!_uriSet.Add(uri) || !ExplorationFilter(uri) || !uri.IsAbsoluteUri)
+            if (!_uriSet.Add(uri) || !_uriValidator(uri) || !uri.IsAbsoluteUri)
                 return;
             PageFound?.Invoke(uri);
             if (_loadingPages.Count > MaxRequest)
                 FillBuffer(uri);
             else
                 WebRequest(uri);
-        }
-
-        /// <summary>
-        /// Filtre Get sur la page web
-        /// </summary>
-        /// <param name="uri"></param>
-        /// <returns></returns>
-        private bool ExplorationFilter(Uri uri)
-        {
-            string href = uri.AbsoluteUri;
-            var getParam = uri.ParseQueryString();
-            if (!href.Contains('#') && href.Contains(_startUrl))
-            {
-                if (getParam.Count != 0)
-                {
-                    foreach (var param in getParam)
-                    {
-                        foreach (var filter in _explorationGetFilter)
-                        {
-                            if (param.Key == filter)
-                                return true;
-                        }
-                    }
-                    return false;
-                }
-                return true;
-            }
-            return false;
         }
 
         /// <summary>
@@ -149,12 +112,20 @@ namespace WebSpiderLib.Explore
             _loadingPages.Remove(webPage.Adress);
             if (_uriBuffer.Count != 0)
                 WebRequest(_uriBuffer.Dequeue());
+            CheckDone();
         }
 
         private void LoadError(Uri uri)
         {
             _loadingPages.Remove(uri);
             PageError?.Invoke(uri);
+            CheckDone();
+        }
+
+        private void CheckDone()
+        {
+            if (_loadingPages.Count == 0 && _uriBuffer.Count == 0)
+                Done?.Invoke();
         }
     }
 }

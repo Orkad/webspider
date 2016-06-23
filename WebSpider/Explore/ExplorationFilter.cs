@@ -8,11 +8,11 @@ namespace WebSpiderLib.Explore
 {
     public class ExplorationFilter
     {
-        public List<Uri> ValidRelativeUriList = new List<Uri>();
+        public List<Uri> ValidBaseUriList = new List<Uri>();
         
         public List<string> ValidGetList = new List<string>();
 
-        public bool exploreDiesePage = false;
+        public bool exploreSharpPage = false;
 
         public bool Validate(Uri uriToValidate)
         {
@@ -20,10 +20,18 @@ namespace WebSpiderLib.Explore
                 return true;
             string href = uriToValidate.AbsoluteUri;
             var getParam = uriToValidate.ParseQueryString();
-            foreach (var uri in ValidRelativeUriList)
+            foreach (var uri in ValidBaseUriList)
             {
                 if (uri.IsBaseOf(uriToValidate))
                 {
+                    foreach (var validGet in ValidGetList)
+                    {
+                        foreach (var get in getParam)
+                        {
+                            if (validGet != get.Key)
+                                return false;
+                        }
+                    }
                     return true;
                 }
             }
