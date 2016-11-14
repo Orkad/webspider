@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using HtmlAgilityPack;
+using WebSpiderLib.Extract.Persistence;
 
 namespace WebSpiderLib.Extract
 {
@@ -50,6 +51,11 @@ namespace WebSpiderLib.Extract
         public void SaveDataBinary(string path)
         {
             Serializer.Save(path,Data);
+        }
+
+        public void AddPersistContext(IDataPersistence persistence)
+        {
+            SuccessParse += persistence.Persist;
         }
     }
 }

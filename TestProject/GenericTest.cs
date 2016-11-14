@@ -29,11 +29,7 @@ namespace TestProject
         {
             var resetEvent = new AutoResetEvent(false);
             WebPage webpage = null;
-            WebPageLoader.LoadASync(uri, page =>
-            {
-                webpage = page;
-                resetEvent.Set();
-            },_ => Assert.Fail("Erreur lors du chargement de la page") );
+            
             Assert.IsTrue(resetEvent.WaitOne(timeout), "Timeout");
             Assert.IsNotNull(webpage);
             return webpage;

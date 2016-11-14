@@ -4,13 +4,15 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using WebSpiderLib.Explore;
+using WebSpiderLib.Explore.Loader;
 using WebSpiderLib.Extract;
+using WebSpiderLib.Extract.Persistence;
 
 namespace WebSpiderLib
 {
     public class MiningContext
     {
-        public WebExplorator Explorator;
+        public WebExplorator<WebPageLoaderAsync> Explorator;
         public WebExtractor Extractor;
 
         public event Action<WebPage> Explore;
@@ -24,9 +26,9 @@ namespace WebSpiderLib
         /// <param name="startUri">Uri de départ de l'exploration</param>
         /// <param name="uriValidator">Fonction de validation des liens a parcourir</param>
         /// <param name="dataDefinition">Définition des données a extraire</param>
-        public MiningContext(Uri startUri, Func<Uri,bool> uriValidator, DataDefinition dataDefinition)
+        public MiningContext(Func<Uri,bool> uriValidator, DataDefinition dataDefinition, IDataPersistence persistence)
         {
-            Explorator = new WebExplorator(startUri, uriValidator);
+            Explorator = new WebExplorator<WebPageLoaderAsync>(uriValidator);
             Extractor = new WebExtractor(dataDefinition);
             Explorator.PageLoaded += page => {
                 Explore?.Invoke(page);
@@ -35,16 +37,18 @@ namespace WebSpiderLib
             Explorator.PageError += uri => ExploreError?.Invoke(uri);
             Explorator.Done += () => Done?.Invoke();
             Extractor.SuccessParse += (data) => Extract?.Invoke(data);
-        }
-
-        public void Run()
-        {
-            Explorator.Start();
+            if(persistence != null)
+                Extractor.AddPersistContext(persistence);
         }
 
         public void SaveDataMining(string path)
         {
             Extractor.SaveDataBinary(path);
+        }
+
+        public void Run(Uri uri)
+        {
+            Explorator.Explore(uri);
         }
     }
 }

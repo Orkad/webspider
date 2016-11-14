@@ -23,5 +23,6 @@ namespace WebSpiderLib.Extract
             value = Regex.Replace(value, @"\n", " ");
             return new Field(Name, value);
         }
+
     }
 }

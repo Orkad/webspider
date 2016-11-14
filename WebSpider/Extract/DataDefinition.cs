@@ -5,7 +5,13 @@ namespace WebSpiderLib.Extract
 {
     public class DataDefinition
     {
+        public string Name;
         public readonly List<FieldDefinition> FieldDefinition = new List<FieldDefinition>();
+
+        public DataDefinition(string name)
+        {
+            Name = name;
+        }
 
         public void AddXPathMatching(string paramName, string xpathRequest)
         {

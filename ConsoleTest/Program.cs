@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using WebSpiderLib;
 using WebSpiderLib.Explore;
 using WebSpiderLib.Extract;
+using WebSpiderLib.Extract.Persistence;
 
 
 namespace ConsoleTest
@@ -21,7 +22,7 @@ namespace ConsoleTest
         private static int errorCount;
         static readonly DateTime StartDateTime = DateTime.Now;
 
-        
+        private static MiningContext context;
         private static List<Data> data;
         static void Main(string[] args)
         {
@@ -32,27 +33,18 @@ namespace ConsoleTest
             CPUBM_UriValidator.ValidGetList.Add("cpu");
             CPUBM_UriValidator.ValidGetList.Add("id");
 
-            DataDefinition CPUBM_DataDef = new DataDefinition();
+            DataDefinition CPUBM_DataDef = new DataDefinition("cpubm");
             CPUBM_DataDef.AddXPathMatching("cpu", "//table[@class=\"desc\"]//span");
             CPUBM_DataDef.AddXPathMatching("benchmark", "//table[@class=\"desc\"]//tr[2]/td[2]/span");
 
-
-            DataDefinition RDC_DataDef = new DataDefinition();
-            RDC_DataDef.AddXPathMatching("produit", "//span[@class='productName']");
-            RDC_DataDef.AddXPathMatching("ref", "//h3[@class='ficheProduit_reference']");
-            RDC_DataDef.AddXPathMatching("price", ".//*[@class='newPrice']");
-
-            ExplorationFilter RDC_UriValidator = new ExplorationFilter();
-            RDC_UriValidator.ValidBaseUriList.Add(CPUBM_URI);
-
-            //MiningContext context = new MiningContext(RDC_URI, RDC_UriValidator.Validate, RDC_DataDef);
-            MiningContext context = new MiningContext(CPUBM_URI, CPUBM_UriValidator.Validate, CPUBM_DataDef);
+            SqlDataPersistence persistence = new SqlDataPersistence("server=127.0.0.1;uid=root;pwd=;database=test;", CPUBM_DataDef);
+            context = new MiningContext(CPUBM_UriValidator.Validate, CPUBM_DataDef, persistence);
             context.Extract += ContextOnExtract;
             context.Explore += ContextOnExplore;
             context.ExploreError += ContextOnExploreError;
             context.Done += () => Console.WriteLine("\n\nExploration terminée");
             data = context.Extractor.Data;
-            context.Run();
+            context.Run(CPUBM_URI);
 
             Console.ReadKey();
             context.SaveDataMining("data.mining");
@@ -79,6 +71,7 @@ namespace ConsoleTest
         private static void ContextOnExploreError(Uri uri)
         {
             errorCount++;
+            ShowStatistics();
             Console.ForegroundColor = ConsoleColor.Red;
             Console.WriteLine("Exploration : " + uri.AbsoluteUri);
         }
@@ -86,6 +79,7 @@ namespace ConsoleTest
         private static void ContextOnExplore(WebPage webPage)
         {
             pageCount++;
+            ShowStatistics();
             Console.ForegroundColor = ConsoleColor.Yellow;
             Console.WriteLine("Exploration : " + webPage.Adress.AbsoluteUri);
         }
@@ -93,6 +87,7 @@ namespace ConsoleTest
         private static void ContextOnExtract(Data resultData)
         {
             dataCount++;
+            ShowStatistics();
             Console.ForegroundColor = ConsoleColor.Green;
             Console.WriteLine("Nouvel objet trouvé !");
             foreach (var field in resultData.Fields)
@@ -109,6 +104,9 @@ namespace ConsoleTest
             Console.WriteLine("Pages explorées : " + pageCount + " (" + (pageCount / (DateTime.Now - StartDateTime).TotalSeconds).ToString("F") + "/s)");
             Console.WriteLine("Erreurs d'exploration : " + errorCount + " (" + (errorCount / (DateTime.Now - StartDateTime).TotalSeconds).ToString("F") + "/s)");
             Console.WriteLine("Données trouvées : " + dataCount + " (" + (dataCount / (DateTime.Now - StartDateTime).TotalSeconds).ToString("F") + "/s)");
+            Console.WriteLine("Requètes en attente de réponse : " + context.Explorator.remainingPages);
+            Console.WriteLine("Taille du buffer d'adresse : " + context.Explorator.bufferSize);
+            Console.WriteLine();
         }
     }
 }
