@@ -18,19 +18,15 @@ namespace WebSpiderLib.Explore
         {
             if (!uriToValidate.IsAbsoluteUri)
                 return true;
-            string href = uriToValidate.AbsoluteUri;
             var getParam = uriToValidate.ParseQueryString();
             foreach (var uri in ValidBaseUriList)
             {
-                if (uri.IsBaseOf(uriToValidate))
+                if (uriToValidate.AbsoluteUri.Contains(uri.AbsoluteUri))
                 {
-                    foreach (var validGet in ValidGetList)
+                    foreach (var get in getParam)
                     {
-                        foreach (var get in getParam)
-                        {
-                            if (validGet != get.Key)
-                                return false;
-                        }
+                        if(!ValidGetList.Contains(get.Key))
+                            return false;
                     }
                     return true;
                 }

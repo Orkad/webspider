@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace WebSpiderLib.Explore
 {
@@ -32,11 +33,9 @@ namespace WebSpiderLib.Explore
         /// <summary>
         /// Nombre de requette maximales
         /// </summary>
-        private int MaxRequest = 1;
+        private int MaxRequest = 1000;
 
         private readonly Func<Uri, bool> _uriValidator;
-
-
 
         public event Action<WebPage> PageLoaded;
         public event Action<Uri> PageError; 
@@ -83,6 +82,7 @@ namespace WebSpiderLib.Explore
                 FillBuffer(uri);
             else
                 WebRequest(uri);
+                            
         }
 
         /// <summary>
@@ -100,7 +100,14 @@ namespace WebSpiderLib.Explore
         /// <param name="uri"></param>
         private void WebRequest(Uri uri)
         {
-            WebPageLoader.Load(uri, LoadSuccess, LoadError);
+            Task<WebPage> test = WebPageLoader.LoadASync(uri);
+            test.Wait();
+            if(test.Result == null)
+                LoadError(uri);
+            else
+            {
+                LoadSuccess(test.Result);
+            }
             _loadingPages.Add(uri);
         }
 

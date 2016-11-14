@@ -29,7 +29,7 @@ namespace TestProject
         {
             var resetEvent = new AutoResetEvent(false);
             WebPage webpage = null;
-            WebPageLoader.Load(uri, page =>
+            WebPageLoader.LoadASync(uri, page =>
             {
                 webpage = page;
                 resetEvent.Set();

@@ -23,7 +23,8 @@ namespace WebSpiderLib.Explore
             public Stream ResponseStream;
             public Decoder StreamDecode = Encoding.UTF8.GetDecoder();
             public Action<WebPage> LoadSuccess;
-            public Action<Uri> LoadError; 
+            public Action<Uri> LoadError;
+            public int trycount;
 
             public RequestState(HttpWebRequest request, Action<WebPage> loadSuccess, Action<Uri> loadError)
             {
@@ -35,7 +36,48 @@ namespace WebSpiderLib.Explore
             }
         }
 
-        public const int BUFFER_SIZE = 1024;
+        public const int BUFFER_SIZE = 4096;
+        public const int MaxTry = 2;
+
+        public static async Task<WebPage> LoadASync(Uri uri)
+        {
+            try
+            {
+                HttpWebRequest webRequest = WebRequest.CreateHttp(uri);
+
+                HttpWebResponse webResponse = (HttpWebResponse)await webRequest.GetResponseAsync();
+
+                StreamReader streamReader = new StreamReader(webResponse.GetResponseStream());
+
+                string html = await streamReader.ReadToEndAsync();
+
+                return new WebPage(uri, HttpUtility.HtmlDecode(html));
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+        }
+
+        public static WebPage Load(Uri uri)
+        {
+            try
+            {
+                HttpWebRequest webRequest = WebRequest.CreateHttp(uri);
+
+                HttpWebResponse webResponse = (HttpWebResponse)webRequest.GetResponse();
+
+                StreamReader streamReader = new StreamReader(webResponse.GetResponseStream());
+
+                string html = streamReader.ReadToEnd();
+
+                return new WebPage(uri, HttpUtility.HtmlDecode(html));
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+        }
 
         public static void Load(Uri uri, Action<WebPage> loadSuccess, Action<Uri> loadError)
         {
@@ -44,46 +86,57 @@ namespace WebSpiderLib.Explore
             HttpWebRequest wreq = (HttpWebRequest)WebRequest.Create(uri);
             // Création de l'état de la requète
             RequestState rs = new RequestState(wreq, loadSuccess, loadError);
+            object _lock = new object();
             // Début de la requète asynchrone
-            wreq.BeginGetResponse(RespCallback, rs);
+            wreq.BeginGetResponse(new AsyncCallback(RespCallback), rs);
         }
 
         private static void RespCallback(IAsyncResult ar)
         {
             // Récupération de l'état de la requète
-            RequestState rs = (RequestState) ar.AsyncState;
-            // Récupération de la requète
-            HttpWebRequest req = rs.Request;
+            RequestState rs = (RequestState)ar.AsyncState;
+            try
+            {
+                
+                // Récupération de la requète
+                HttpWebRequest req = rs.Request;
 
-            // Call EndGetResponse, which produces the WebResponse object
-            //  that came from the request issued above.
-            WebResponse resp = req.EndGetResponse(ar);
+                // Call EndGetResponse, which produces the WebResponse object
+                //  that came from the request issued above.
+                HttpWebResponse resp = (HttpWebResponse)req.EndGetResponse(ar);
 
-            //  Start reading data from the response stream.
-            Stream ResponseStream = resp.GetResponseStream();
+                //  Start reading data from the response stream.
+                Stream responseStream = resp.GetResponseStream();
 
-            // Store the response stream in RequestState to read 
-            // the stream asynchronously.
-            rs.ResponseStream = ResponseStream;
+                StreamReader reader = new StreamReader(responseStream);
 
-            //  Pass rs.BufferRead to BeginRead. Read data into rs.BufferRead
-            ResponseStream.BeginRead(rs.BufferRead, 0, BUFFER_SIZE,ReadCallBack, rs);
+                string html = reader.ReadToEnd();
+
+                responseStream.Close();
+
+                rs.LoadSuccess(new WebPage(rs.Request.RequestUri, HttpUtility.HtmlDecode(html)));
+            }
+            catch (Exception)
+            {
+
+                rs.LoadError?.Invoke(rs.Request.RequestUri);
+            }
+            
         }
 
 
         private static void ReadCallBack(IAsyncResult asyncResult)
         {
+            
             // Get the RequestState object from AsyncResult.
             RequestState rs = (RequestState) asyncResult.AsyncState;
+           
 
             try
             {
 
-                // Retrieve the ResponseStream that was set in RespCallback. 
-                Stream responseStream = rs.ResponseStream;
-
-                // Read rs.BufferRead to verify that it contains data. 
-                int read = responseStream.EndRead(asyncResult);
+                var responseStream = rs.ResponseStream;
+                var read = responseStream.EndRead(asyncResult);
                 if (read > 0)
                 {
                     // Append the recently read data to the RequestData stringbuilder
@@ -96,17 +149,15 @@ namespace WebSpiderLib.Explore
                 else
                 {
                     string html = rs.StrData.ToString();
-                    // Close down the response stream.
                     responseStream.Close();
-
                     rs.LoadSuccess(new WebPage(rs.Request.RequestUri, HttpUtility.HtmlDecode(html)));
-
                 }
-
             }
-            catch (Exception)
+            catch (Exception e)
             {
                 System.Diagnostics.Debug.WriteLine("Erreur de lecture de l'uri : " + rs.Request.RequestUri);
+                System.Diagnostics.Debug.WriteLine(e.StackTrace);
+                System.Diagnostics.Debug.WriteLine(e.Message);
                 rs.LoadError?.Invoke(rs.Request.RequestUri);
             }
         }
